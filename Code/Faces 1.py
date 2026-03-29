@@ -36,6 +36,8 @@ is_sleeping      = False
 sleepy_start     = 0
 SLEEPY_TO_SLEEP  = 8.0
 last_interaction = time.time()
+sleepy_z_offset = 0
+sleepy_z_timer  = 0
 
 # ─────────────────────────────────────────
 # BUTTON
@@ -102,18 +104,18 @@ def sleepy_face(sx=0, sy=0):
     oled.fill_rect(60+sx, 50+sy, 10, 2, 1)
     oled.show()
 
-sleepy_z_offset = 0
-sleepy_z_timer  = 0
-
 def sleeping_face(sx=0, sy=0):
     global sleepy_z_offset, sleepy_z_timer
+    x = 1
     oled.fill(0)
     oled.fill_rect(25+sx, 25+sy, 30, 2, 1)
     oled.fill_rect(73+sx, 25+sy, 30, 2, 1)
     oled.fill_rect(60+sx, 50+sy, 10, 2, 1)
     now = time.time()
     if now - sleepy_z_timer > 0.1:
-        sleepy_z_offset = (sleepy_z_offset + 1) % 20
+        sleepy_z_offset = (sleepy_z_offset + x)
+        if abs(x) >= 15:
+            x *= -1
         sleepy_z_timer  = now
     o = sleepy_z_offset
     draw_z(95+sx,  18-o+sy, 4)
@@ -147,7 +149,7 @@ while True:
 
     # ── State updates ────────────────────
     if not is_sleepy and not is_sleeping:
-        if now - last_interaction > 5:
+        if now - last_interaction > 10:
             is_sleepy    = True
             sleepy_start = now
 
@@ -174,15 +176,15 @@ while True:
         is_blinking = False
         last_blink  = now
         
+    if is_blinking and (now - last_blink) > 1.0:
+        is_blinking = False
+        last_blink  = now
+        
     if double_blink and not is_blinking and now > second_blink_time:
         is_blinking       = True
         blink_end         = now + 0.15
         double_blink      = False
         second_blink_time = 0
-        
-    if is_blinking and (now - last_blink) > 1.0:
-        is_blinking = False
-        last_blink  = now
 
     # ── Eye movement ─────────────────────
     if now - last_offset > time_for_next and not is_sleeping:
