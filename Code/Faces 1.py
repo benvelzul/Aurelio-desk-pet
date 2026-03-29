@@ -10,13 +10,21 @@ i2c = I2C(0, scl=Pin(1), sda=Pin(0))
 oled = ssd1306.SSD1306_I2C(128, 64, i2c)
 button = Pin(15, Pin.IN, Pin.PULL_UP)
 
+# helper — always use this for time comparisons
+def ms():
+    return time.ticks_ms()
+
+def elapsed(start):
+    return time.ticks_diff(time.ticks_ms(), start)
+
 # ─────────────────────────────────────────
 # BLINK
 # ─────────────────────────────────────────
 is_blinking       = False
 blink_end         = 0
-last_blink        = 0
-BLINK_COOLDOWN    = 2.0
+blink_start       = ms()
+last_blink        = ms()
+BLINK_COOLDOWN    = 2000   # ms
 double_blink      = False
 second_blink_time = 0
 
@@ -25,26 +33,27 @@ second_blink_time = 0
 # ─────────────────────────────────────────
 offset_x      = 0
 offset_y      = 0
-last_offset   = time.time()
-time_for_next = random.uniform(0.5, 3)
+last_offset   = ms()
+time_for_next = random.randint(500, 3000)   # ms
 
 # ─────────────────────────────────────────
 # STATES
 # ─────────────────────────────────────────
 is_sleepy        = False
 is_sleeping      = False
-sleepy_start     = 0
-SLEEPY_TO_SLEEP  = 8.0
-last_interaction = time.time()
-sleepy_z_offset = 0
-x = 1
-sleepy_z_timer  = 0
+sleepy_start     = ms()
+SLEEPY_TO_SLEEP  = 8000
+AWAKE_TO_SLEEPY  = 15000
+last_interaction = ms()
+sleepy_z_offset  = 0
+sleepy_z_dir     = 1
+sleepy_z_timer   = ms()
 
 # ─────────────────────────────────────────
 # BUTTON
 # ─────────────────────────────────────────
 press_count     = 0
-last_press_time = 0
+last_press_time = ms()
 
 # ─────────────────────────────────────────
 # SHAKE
@@ -67,17 +76,17 @@ def draw_z(x, y, size):
     oled.line(x + size, y,        x,        y + size, 1)
     oled.line(x,        y + size, x + size, y + size, 1)
 
-def start_shake(intensity=4, duration=0.2):
+def start_shake(intensity=4, duration=200):
     global shake_intensity, shake_end
     shake_intensity = intensity
-    shake_end = time.time() + duration
+    shake_end = ms() + duration
 
 # ─────────────────────────────────────────
 # FACES
 # ─────────────────────────────────────────
-def normal_face(sx=0, sy=0):
+def normal_face(sx=0, sy=0, blinking=False):
     oled.fill(0)
-    if is_blinking:
+    if blinking:
         oled.fill_rect(25+sx, 25+sy, 30, 3, 1)
         oled.fill_rect(73+sx, 25+sy, 30, 3, 1)
     else:
@@ -106,21 +115,19 @@ def sleepy_face(sx=0, sy=0):
     oled.show()
 
 def sleeping_face(sx=0, sy=0):
-    global sleepy_z_offset, sleepy_z_timer, x
+    global sleepy_z_offset, sleepy_z_timer, sleepy_z_dir
     oled.fill(0)
     oled.fill_rect(25+sx, 25+sy, 30, 2, 1)
     oled.fill_rect(73+sx, 25+sy, 30, 2, 1)
     oled.fill_rect(60+sx, 50+sy, 10, 2, 1)
-    now = time.time()
-    if now - sleepy_z_timer > 0.1:
-        sleepy_z_offset = (sleepy_z_offset + x)
-        print(sleepy_z_offset)
+    now = ms()
+    if elapsed(sleepy_z_timer) > 100:
+        sleepy_z_offset += sleepy_z_dir
         if sleepy_z_offset >= 8:
-            x = -1
-        elif sleepy_z_offset <= 0:
-            x = 1
-        
-        sleepy_z_timer  = now
+            sleepy_z_dir = -1
+        elif sleepy_z_offset <= 3:
+            sleepy_z_dir = 1
+        sleepy_z_timer = now
     o = sleepy_z_offset
     draw_z(95+sx,  18-o+sy, 4)
     draw_z(103+sx, 10-o+sy, 6)
@@ -131,7 +138,7 @@ def sleeping_face(sx=0, sy=0):
 # MAIN LOOP
 # ─────────────────────────────────────────
 while True:
-    now = time.time()
+    now = ms()
 
     # ── Button ───────────────────────────
     if not button.value():
@@ -141,64 +148,54 @@ while True:
         is_blinking       = False
         double_blink      = False
         second_blink_time = 0
+        blink_start       = now
+        last_blink        = now
 
-        if now - last_press_time < 0.5:
+        if elapsed(last_press_time) < 500:
             press_count += 1
         else:
             press_count = 1
         last_press_time = now
-        time.sleep(0.2)
+        time.sleep_ms(200)
 
-    now = time.time()
+    now = ms()
 
     # ── State updates ────────────────────
     if not is_sleepy and not is_sleeping:
-        if now - last_interaction > 10:
+        if elapsed(last_interaction) > AWAKE_TO_SLEEPY:
             is_sleepy    = True
             sleepy_start = now
 
-    if is_sleepy and now - sleepy_start > SLEEPY_TO_SLEEP:
+    if is_sleepy and elapsed(sleepy_start) > SLEEPY_TO_SLEEP:
         is_sleepy   = False
         is_sleeping = True
-        start_shake(intensity=2, duration=0.2)
+        start_shake(intensity=2, duration=200)
 
     # ── Blink ────────────────────────────
     blink_chance = 0.04 if not is_sleepy else 0.015
 
     if (not is_blinking and not is_sleeping
-            and (now - last_blink) > BLINK_COOLDOWN
+            and elapsed(last_blink) > BLINK_COOLDOWN
             and random.random() < blink_chance):
         is_blinking = True
-        blink_end   = now + 0.6
-        if random.random() < 0.2:
-            double_blink      = True
-            second_blink_time = blink_end + 0.1
-        else:
-            double_blink = False
+        blink_end   = now + 180
+        blink_start = now
+        print(f"BLINK START now={now} end={blink_end}")
 
-    if is_blinking and now > blink_end:
+    if is_blinking and time.ticks_diff(now, blink_end) > 0:
         is_blinking = False
         last_blink  = now
-        
-    if is_blinking and (now - last_blink) > 1.0:
-        is_blinking = False
-        last_blink  = now
-        
-    if double_blink and not is_blinking and now > second_blink_time:
-        is_blinking       = True
-        blink_end         = now + 0.15
-        double_blink      = False
-        second_blink_time = 0
+        print(f"BLINK END now={now}")
 
     # ── Eye movement ─────────────────────
-    if now - last_offset > time_for_next and not is_sleeping:
+    if elapsed(last_offset) > time_for_next and not is_sleeping:
         last_offset   = now
-        time_for_next = random.uniform(0.5, 1)
+        time_for_next = random.randint(500, 1500)
         offset_x = max(-4, min(4, offset_x + random.choice([-1, 0, 1])))
         offset_y = max(-4, min(4, offset_y + random.choice([-1, 0, 1])))
 
     # ── Shake ────────────────────────────
-    if now < shake_end:
+    if time.ticks_diff(now, shake_end) < 0:
         sx = random.randint(-shake_intensity, shake_intensity)
         sy = random.randint(-shake_intensity, shake_intensity)
     else:
@@ -211,6 +208,6 @@ while True:
     elif is_sleepy:
         sleepy_face(sx, sy)
     else:
-        normal_face(sx, sy)
+        normal_face(sx, sy, is_blinking)
 
-    time.sleep(0.05)
+    time.sleep_ms(50)
