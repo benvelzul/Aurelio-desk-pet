@@ -37,6 +37,7 @@ sleepy_start     = 0
 SLEEPY_TO_SLEEP  = 8.0
 last_interaction = time.time()
 sleepy_z_offset = 0
+x = 1
 sleepy_z_timer  = 0
 
 # ─────────────────────────────────────────
@@ -105,8 +106,7 @@ def sleepy_face(sx=0, sy=0):
     oled.show()
 
 def sleeping_face(sx=0, sy=0):
-    global sleepy_z_offset, sleepy_z_timer
-    x = 1
+    global sleepy_z_offset, sleepy_z_timer, x
     oled.fill(0)
     oled.fill_rect(25+sx, 25+sy, 30, 2, 1)
     oled.fill_rect(73+sx, 25+sy, 30, 2, 1)
@@ -114,8 +114,12 @@ def sleeping_face(sx=0, sy=0):
     now = time.time()
     if now - sleepy_z_timer > 0.1:
         sleepy_z_offset = (sleepy_z_offset + x)
-        if abs(x) >= 15:
-            x *= -1
+        print(sleepy_z_offset)
+        if sleepy_z_offset >= 8:
+            x = -1
+        elif sleepy_z_offset <= 0:
+            x = 1
+        
         sleepy_z_timer  = now
     o = sleepy_z_offset
     draw_z(95+sx,  18-o+sy, 4)
@@ -189,7 +193,7 @@ while True:
     # ── Eye movement ─────────────────────
     if now - last_offset > time_for_next and not is_sleeping:
         last_offset   = now
-        time_for_next = random.uniform(0.5, 1.5)
+        time_for_next = random.uniform(0.5, 1)
         offset_x = max(-4, min(4, offset_x + random.choice([-1, 0, 1])))
         offset_y = max(-4, min(4, offset_y + random.choice([-1, 0, 1])))
 
