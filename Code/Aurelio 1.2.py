@@ -28,14 +28,11 @@ def ticks_after(start, end):
 # ─────────────────────────────────────────
 BLINK_COOLDOWN   = 2000   # ms between blinks
 BLINK_DURATION   = 150    # ms eyes stay closed
-AWAKE_TO_SLEEPY  = 30000  # ms idle before getting sleepy
+AWAKE_TO_SLEEPY  = 100000  # ms idle before getting sleepy
 SLEEPY_TO_SLEEP  = 10000  # ms in sleepy before sleeping
 LOOP_DELAY       = 50     # ms per frame
-ANNOY_DURATION   = 3000   # ms annoyed face shows
+ANNOY_DURATION   = 5000   # ms annoyed face shows
 ANNOY_PRESSES    = 5      # presses to trigger annoyance
-ANNOY_IDLE_MIN   = 60000  # ms idle before random annoyance can happen
-ANNOY_IDLE_CHANCE = 0.001 # chance per frame of random annoyance
-
 # ─────────────────────────────────────────
 # STATE
 # ─────────────────────────────────────────
@@ -74,6 +71,7 @@ state = {
     "is_annoyed":    False,
     "annoy_end":     0,
     "annoy_trigger": "",   # "spam", "wake", or "idle"
+    "pulse_dir": 0
 }
 
 # ─────────────────────────────────────────
@@ -90,6 +88,10 @@ def draw_z(x, y, size):
     oled.line(x,        y,        x+size, y,        1)
     oled.line(x+size,   y,        x,      y+size,   1)
     oled.line(x,        y+size,   x+size, y+size,   1)
+    
+def draw_thick_line(x1, y1, x2, y2, lines=1):
+    for i in range(lines):
+        oled.line(x1+i, y1+i, x2+i, y2+i, 1)
 
 # ─────────────────────────────────────────
 # SHAKE
@@ -178,7 +180,7 @@ def handle_button(now):
     if was_sleeping:
         trigger_annoy(now, "wake")
 
-    if elapsed(state["last_press_time"]) < 500:
+    if elapsed(state["last_press_time"]) < 1000:
         state["press_count"] += 1
     else:
         state["press_count"] = 1
@@ -225,11 +227,6 @@ def update_annoy(now):
     if state["is_annoyed"] and ticks_after(now, state["annoy_end"]):
         state["is_annoyed"] = False
         print("ANNOY -> calm")
-    # random idle annoyance
-    if (not state["is_annoyed"] and not state["is_sleeping"]
-            and elapsed(state["last_interaction"]) > ANNOY_IDLE_MIN
-            and random.random() < ANNOY_IDLE_CHANCE):
-        trigger_annoy(now, "idle")
 
 # ─────────────────────────────────────────
 # FACES
@@ -279,17 +276,32 @@ def sleeping_face(sx=0, sy=0):
 def annoyed_face(sx=0, sy=0):
     ox, oy = state["offset_x"], state["offset_y"]
     oled.fill(0)
+    
     # angry brows angled inward
-    oled.line(25+sx, 18+sy, 45+sx, 26+sy, 1)
-    oled.line(26+sx, 18+sy, 46+sx, 26+sy, 1)  # thicker
-    oled.line(83+sx, 26+sy, 103+sx, 18+sy, 1)
-    oled.line(84+sx, 26+sy, 104+sx, 18+sy, 1)  # thicker
+    draw_thick_line(25, 3, 50, 7, 3)
+    draw_thick_line(75, 7, 105, 3, 3)
+    
+    # Eyes shake more
+    sx = random.randint(-3, 3)
+    sy = random.randint(-3, 3)
+    
     # normal eye circles
-    fill_circle(40+sx,      30+sy, 13)
-    fill_circle(88+sx,      30+sy, 13)
-    # small pupils (looking slightly down-center = more menacing)
-    fill_circle(40+sx + ox, 32+sy + oy, 4, "black")
-    fill_circle(88+sx + ox, 32+sy + oy, 4, "black")
+    fill_circle(40+sx,      25+sy, 15)
+    fill_circle(88+sx,      25+sy, 15)
+    
+    # pulsing pupils
+    state["pulse_dir"] = state.get("pulse_dir", 1)  # safety default
+    state["pulse"]     = state.get("pulse", 1)       # safety default
+    state["pulse"]    += state["pulse_dir"]
+    if state["pulse"] >= 4:
+        state["pulse_dir"] = -0.5
+    elif state["pulse"] <= 1:
+        state["pulse_dir"] = 0.5
+
+    p = int(state["pulse"])
+    fill_circle(40+sx + ox, 30+sy + oy, p, "black")
+    fill_circle(88+sx + ox, 30+sy + oy, p, "black")
+    
     # flat mouth
     oled.fill_rect(55+sx, 52+sy, 18, 2, 1)
     oled.show()
@@ -317,7 +329,7 @@ while True:
     now = ms()
 
     update_mood(now)
-    update_annoy(now)     # ← add this
+    update_annoy(now) 
     try_blink(now)
     update_blink(now)
     update_eye_offset(now)
