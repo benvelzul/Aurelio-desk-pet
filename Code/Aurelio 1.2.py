@@ -31,6 +31,10 @@ BLINK_DURATION   = 150    # ms eyes stay closed
 AWAKE_TO_SLEEPY  = 30000  # ms idle before getting sleepy
 SLEEPY_TO_SLEEP  = 10000  # ms in sleepy before sleeping
 LOOP_DELAY       = 50     # ms per frame
+ANNOY_DURATION   = 3000   # ms annoyed face shows
+ANNOY_PRESSES    = 5      # presses to trigger annoyance
+ANNOY_IDLE_MIN   = 60000  # ms idle before random annoyance can happen
+ANNOY_IDLE_CHANCE = 0.001 # chance per frame of random annoyance
 
 # ─────────────────────────────────────────
 # STATE
@@ -65,6 +69,11 @@ state = {
     "z_offset": 0,
     "z_dir":    1,
     "z_timer":  ms(),
+    
+    # annoyance
+    "is_annoyed":    False,
+    "annoy_end":     0,
+    "annoy_trigger": "",   # "spam", "wake", or "idle"
 }
 
 # ─────────────────────────────────────────
@@ -134,8 +143,7 @@ def update_eye_offset(now):
 # MOOD / STATE LOGIC
 # ─────────────────────────────────────────
 def update_mood(now):
-    """Handle sleepy -> sleeping transitions."""
-    if not state["is_sleepy"] and not state["is_sleeping"]:
+    if not state["is_sleepy"] and not state["is_sleeping"] and not state["is_annoyed"]:
         if elapsed(state["last_interaction"]) > AWAKE_TO_SLEEPY:
             state["is_sleepy"]    = True
             state["sleepy_start"] = now
@@ -160,17 +168,29 @@ def wake_up(now):
 # BUTTON HANDLING
 # ─────────────────────────────────────────
 def handle_button(now):
-    if button.value():   # not pressed (active low)
+    if button.value():
         return
+
+    was_sleeping = state["is_sleeping"]
     wake_up(now)
+
+    # waking from sleep = annoyed
+    if was_sleeping:
+        trigger_annoy(now, "wake")
+
     if elapsed(state["last_press_time"]) < 500:
         state["press_count"] += 1
     else:
         state["press_count"] = 1
     state["last_press_time"] = now
+
+    # button spam = annoyed
+    if state["press_count"] >= ANNOY_PRESSES:
+        trigger_annoy(now, "spam")
+        state["press_count"] = 0
+
     print(f"BTN press_count={state['press_count']}")
     time.sleep_ms(200)
-
 # ─────────────────────────────────────────
 # ZZZ ANIMATION
 # ─────────────────────────────────────────
@@ -188,6 +208,28 @@ def draw_zzz(sx, sy):
     draw_z(95+sx,  18-o+sy, 4)
     draw_z(103+sx, 10-o+sy, 6)
     draw_z(113+sx,  0-o+sy, 8)
+
+# ─────────────────────────────────────────
+# ANNOYANCE
+# ─────────────────────────────────────────
+def trigger_annoy(now, reason=""):
+    if state["is_annoyed"]:
+        return
+    state["is_annoyed"]    = True
+    state["annoy_end"]     = now + ANNOY_DURATION
+    state["annoy_trigger"] = reason
+    start_shake(intensity=5, duration=400)
+    print(f"ANNOYED reason={reason}")
+
+def update_annoy(now):
+    if state["is_annoyed"] and ticks_after(now, state["annoy_end"]):
+        state["is_annoyed"] = False
+        print("ANNOY -> calm")
+    # random idle annoyance
+    if (not state["is_annoyed"] and not state["is_sleeping"]
+            and elapsed(state["last_interaction"]) > ANNOY_IDLE_MIN
+            and random.random() < ANNOY_IDLE_CHANCE):
+        trigger_annoy(now, "idle")
 
 # ─────────────────────────────────────────
 # FACES
@@ -233,12 +275,32 @@ def sleeping_face(sx=0, sy=0):
     update_z_animation()
     draw_zzz(sx, sy)
     oled.show()
+    
+def annoyed_face(sx=0, sy=0):
+    ox, oy = state["offset_x"], state["offset_y"]
+    oled.fill(0)
+    # angry brows angled inward
+    oled.line(25+sx, 18+sy, 45+sx, 26+sy, 1)
+    oled.line(26+sx, 18+sy, 46+sx, 26+sy, 1)  # thicker
+    oled.line(83+sx, 26+sy, 103+sx, 18+sy, 1)
+    oled.line(84+sx, 26+sy, 104+sx, 18+sy, 1)  # thicker
+    # normal eye circles
+    fill_circle(40+sx,      30+sy, 13)
+    fill_circle(88+sx,      30+sy, 13)
+    # small pupils (looking slightly down-center = more menacing)
+    fill_circle(40+sx + ox, 32+sy + oy, 4, "black")
+    fill_circle(88+sx + ox, 32+sy + oy, 4, "black")
+    # flat mouth
+    oled.fill_rect(55+sx, 52+sy, 18, 2, 1)
+    oled.show()
 
 # ─────────────────────────────────────────
 # RENDER
 # ─────────────────────────────────────────
 def render(sx=0, sy=0):
-    if state["is_sleeping"]:
+    if state["is_annoyed"]:
+        annoyed_face(sx, sy)
+    elif state["is_sleeping"]:
         sleeping_face(sx, sy)
     elif state["is_sleepy"]:
         sleepy_face(sx, sy)
@@ -252,9 +314,10 @@ while True:
     now = ms()
 
     handle_button(now)
-    now = ms()              # refresh after potential button sleep
+    now = ms()
 
     update_mood(now)
+    update_annoy(now)     # ← add this
     try_blink(now)
     update_blink(now)
     update_eye_offset(now)
