@@ -178,7 +178,8 @@ def handle_button(now):
 
     # waking from sleep = annoyed
     if was_sleeping:
-        trigger_annoy(now, "wake")
+        if random.random() > 0.5:
+            trigger_annoy(now, "wake")
 
     if elapsed(state["last_press_time"]) < 1000:
         state["press_count"] += 1
@@ -221,6 +222,13 @@ def trigger_annoy(now, reason=""):
     state["annoy_end"]     = now + ANNOY_DURATION
     state["annoy_trigger"] = reason
     start_shake(intensity=5, duration=400)
+    for i in range(3):
+        oled.invert(1)
+        oled.show()
+        time.sleep(0.05)
+        oled.invert(0)
+        oled.show()
+        time.sleep(0.05)
     print(f"ANNOYED reason={reason}")
 
 def update_annoy(now):
