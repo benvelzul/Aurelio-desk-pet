@@ -15,7 +15,7 @@ Aurelio is not just a display — it has personality, moods, and behaviors that 
 ## ✨ Features
 
 * 👀 Animated eyes with smooth movement
-* 👁️ Natural blinking + double blink system
+* 👁️ Natural blinking
 * 😴 Idle → sleepy → sleeping states
 * 😠 Reacts to rapid button presses (gets angry)
 * 🎲 Randomized behavior for “alive” feeling
@@ -42,37 +42,20 @@ Aurelio behaves like a small digital creature:
 
 ---
 
-## 📂 Project Structure
-
-* `main.py` → main behavior loop
-* `drawing` → rendering functions
-* `logic` → mood + state system *(future improvement)*
-
----
-
 ## 🧪 Versions
-
-### V1.0
-
-* Basic face rendering
 
 ### V1.1
 
+* Basic face rendering
 * Eye movement
-
-### V1.2
-
 * Blinking system
+* sleepy + sleeping
 
-### V1.3
-
+### V1.2 
 * Personality system (sleepy + angry)
-
-### V1.4 (Current)
-
-* Double blink
 * Improved timing
 * Screen shake
+* anger levels
 
 ---
 
