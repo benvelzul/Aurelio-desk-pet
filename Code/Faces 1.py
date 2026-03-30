@@ -42,8 +42,8 @@ time_for_next = random.randint(500, 3000)   # ms
 is_sleepy        = False
 is_sleeping      = False
 sleepy_start     = ms()
-SLEEPY_TO_SLEEP  = 8000
-AWAKE_TO_SLEEPY  = 15000
+SLEEPY_TO_SLEEP  = 10000
+AWAKE_TO_SLEEPY  = 30000
 last_interaction = ms()
 sleepy_z_offset  = 0
 sleepy_z_dir     = 1
@@ -178,7 +178,7 @@ while True:
             and elapsed(last_blink) > BLINK_COOLDOWN
             and random.random() < blink_chance):
         is_blinking = True
-        blink_end   = now + 180
+        blink_end   = now + 100
         blink_start = now
         print(f"BLINK START now={now} end={blink_end}")
 
