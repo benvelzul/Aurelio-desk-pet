@@ -130,6 +130,14 @@ def angry_cross(x, y, size):
     
     
 # ─────────────────────────────────────────
+# RGB MANAGER
+# ─────────────────────────────────────────
+def set_rgb(r=0, g=0, b=0):
+    R.duty_u16(r)
+    G.duty_u16(g)
+    B.duty_u16(b)
+    
+# ─────────────────────────────────────────
 # SHAKE
 # ─────────────────────────────────────────
 def start_shake(intensity=4, duration=200):
@@ -250,7 +258,11 @@ def update_anger(now):
 def handle_button(now):
     if button.value():
         return
-
+    
+    oled.invert(1); oled.show()
+    time.sleep_ms(30)
+    oled.invert(0); oled.show()
+    time.sleep_ms(30)
     was_sleeping = state["is_sleeping"]
     wake_up(now)
 
@@ -292,6 +304,7 @@ def draw_zzz(sx, sy):
 # FACES
 # ─────────────────────────────────────────
 def normal_face(sx=0, sy=0):
+    set_rgb(0, 0, 3000)
     ox, oy = state["offset_x"], state["offset_y"]
     oled.fill(0)
     if state["is_blinking"]:
@@ -306,6 +319,7 @@ def normal_face(sx=0, sy=0):
     oled.show()
     
 def scan_face(sx=0, sy=0):
+    set_rgb(0, 8000, 8000) 
     if random.random() < 0.1:
         state["offset_y"] = random.choice([-1, 0, 1])
     ox, oy = state["offset_x"], state["offset_y"]
@@ -344,6 +358,7 @@ def scan_face(sx=0, sy=0):
     oled.show()
 
 def sleepy_face(sx=0, sy=0):
+    set_rgb(0, 0, 1000)
     ox, oy = state["offset_x"], state["offset_y"]
     oled.fill(0)
     if state["is_blinking"]:
@@ -362,6 +377,7 @@ def sleepy_face(sx=0, sy=0):
     oled.show()
 
 def sleeping_face(sx=0, sy=0):
+    set_rgb(0, 0, 0)
     oled.fill(0)
     oled.fill_rect(25+sx, 25+sy, 30, 2, 1)
     oled.fill_rect(73+sx, 25+sy, 30, 2, 1)
@@ -371,7 +387,7 @@ def sleeping_face(sx=0, sy=0):
     oled.show()
 
 def annoyed_face(sx=0, sy=0):
-    R.duty_u16(65000)
+    set_rgb(15000 * lvl, 0, 0)
     ox, oy = state["offset_x"], state["offset_y"]
     lvl    = state["anger_level"]
     oled.fill(0)
