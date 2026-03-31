@@ -1,4 +1,4 @@
-from machine import Pin, I2C
+from machine import Pin, I2C, PWM
 import ssd1306
 import time
 import random
@@ -9,6 +9,12 @@ import random
 i2c    = I2C(0, scl=Pin(1), sda=Pin(0))
 oled   = ssd1306.SSD1306_I2C(128, 64, i2c)
 button = Pin(15, Pin.IN, Pin.PULL_UP)
+R = PWM(Pin(7), freq=1000)
+G = PWM(Pin(8), freq=1000)
+B = PWM(Pin(9), freq=1000)
+R.duty_u16(0)
+G.duty_u16(0)
+B.duty_u16(0)
 
 # ─────────────────────────────────────────
 # TIME HELPERS
@@ -173,7 +179,7 @@ def update_scan(now):
     if (not state["is_scanning"]
             and not state["is_sleeping"]
             and state["anger_level"] == 0
-            and random.random() < 0.009):
+            and random.random() < 0.01):
         state["is_scanning"] = True
         state["scan_end"]    = now + SCAN_DURATION
         print("[SCAN] start")
@@ -329,8 +335,8 @@ def scan_face(sx=0, sy=0):
         oled.fill_rect(73+sx, 35+sy, 30, 5, 0)
 
         # eyebrow lines (focused look)
-        oled.line(25+sx, 15+sy, 50+sx, 12+sy, 1)
-        oled.line(75+sx, 12+sy, 105+sx, 15+sy, 1)
+        oled.line(25+sx, 7+sy+squint, 55+sx, 7+sy+squint, 1)
+        oled.line(74+sx, 7+sy+squint, 104+sx, 7+sy+squint, 1)
 
     # small flat mouth (concentrating)
     oled.fill_rect(60+sx, 50+sy, 10, 2, 1)
@@ -365,6 +371,7 @@ def sleeping_face(sx=0, sy=0):
     oled.show()
 
 def annoyed_face(sx=0, sy=0):
+    R.duty_u16(65000)
     ox, oy = state["offset_x"], state["offset_y"]
     lvl    = state["anger_level"]
     oled.fill(0)
