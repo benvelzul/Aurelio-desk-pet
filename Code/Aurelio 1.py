@@ -31,7 +31,7 @@ AWAKE_TO_SLEEPY  = 100000
 SLEEPY_TO_SLEEP  = 10000
 LOOP_DELAY       = 50
 ANNOY_DURATION   = 5000
-ANNOY_PRESSES    = 5
+ANNOY_PRESSES    = 4
 
 # ─────────────────────────────────────────
 # STATE
@@ -99,8 +99,29 @@ def draw_z(x, y, size):
 
 def draw_thick_line(x1, y1, x2, y2, t=2):
     for i in range(t):
-        oled.line(x1+i, y1+i, x2+i, y2+i, 1)
+        oled.line(x1, y1+i, x2, y2+i, 1)
+        
+def angry_cross(x, y, size):
+    arm = size // 4
+    gap = arm * 2 + 2   # gap between the two halves
 
+    # top-left
+    oled.line(x,         y + arm, x,         y,       1)
+    oled.line(x,         y + arm, x - arm,   y + arm, 1)
+
+    # top-right
+    oled.line(x + gap,   y + arm, x + gap,         y,       1)
+    oled.line(x + gap,   y + arm, x + gap + arm,   y + arm, 1)
+
+    # bottom-left
+    oled.line(x,         y + gap, x,         y + gap +arm, 1)
+    oled.line(x,         y + gap, x - arm,   y + gap, 1)
+
+    # bottom-right
+    oled.line(x + gap,   y + gap, x + gap,       y + gap+arm, 1)
+    oled.line(x + gap,   y + gap, x + gap + arm, y + gap, 1)
+    
+    
 # ─────────────────────────────────────────
 # SHAKE
 # ─────────────────────────────────────────
@@ -195,7 +216,7 @@ def wake_up(now):
 # ─────────────────────────────────────────
 def trigger_annoy(now, reason=""):
     # each trigger bumps anger up, max level 3
-    state["anger_level"]   = min(3, state["anger_level"] + 1)
+    state["anger_level"]   = min(4, state["anger_level"] + 1)
     state["annoy_end"]     = now + ANNOY_DURATION
     state["annoy_trigger"] = reason
     start_shake(intensity=3 + state["anger_level"], duration=300)
@@ -313,7 +334,7 @@ def annoyed_face(sx=0, sy=0):
     brow_thickness = 1 + lvl
     brow_slant     = 2 * lvl
     draw_thick_line(25+sx, 5-brow_slant+sy, 50+sx, 10+sy,     brow_thickness)
-    draw_thick_line(75+sx, 10+sy,     104+sx, 5-brow_slant+sy, brow_thickness)
+    draw_thick_line(75+sx, 10+sy,     100+sx, 4-brow_slant+sy, brow_thickness)
 
     # eyes
     fill_circle(40+sx,      30+sy, 15)
@@ -326,6 +347,9 @@ def annoyed_face(sx=0, sy=0):
     p = int(state["pulse"])
     fill_circle(40+sx + ox, 30+sy + oy, p, "black")
     fill_circle(88+sx + ox, 30+sy + oy, p, "black")
+    
+    if lvl > 3:
+        angry_cross(110, 4, 12)
 
     # mouth gets wider/thicker with anger level
     oled.fill_rect(55+sx, 52+sy, 18, 1 + lvl, 1)
