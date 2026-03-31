@@ -32,6 +32,7 @@ SLEEPY_TO_SLEEP  = 10000
 LOOP_DELAY       = 50
 ANNOY_DURATION   = 5000
 ANNOY_PRESSES    = 4
+SCAN_DURATION = 4000
 
 # ─────────────────────────────────────────
 # STATE
@@ -172,9 +173,9 @@ def update_scan(now):
     if (not state["is_scanning"]
             and not state["is_sleeping"]
             and state["anger_level"] == 0
-            and random.random() < 0.003):
+            and random.random() < 0.1):
         state["is_scanning"] = True
-        state["scan_end"]    = now + 2000
+        state["scan_end"]    = now + SCAN_DURATION
         print("[SCAN] start")
 
     if state["is_scanning"]:
@@ -297,6 +298,44 @@ def normal_face(sx=0, sy=0):
         fill_circle(88+sx + ox, 25+sy + oy, 3, "black")
     oled.fill_rect(60+sx, 50+sy, 10, 2, 1)
     oled.show()
+    
+def scan_face(sx=0, sy=0):
+    if random.random() < 0.1:
+        state["offset_y"] = random.choice([-1, 0, 1])
+    ox, oy = state["offset_x"], state["offset_y"]
+
+    oled.fill(0)
+    if state["is_blinking"]:
+        oled.fill_rect(25+sx, 25+sy, 30, 3, 1)
+        oled.fill_rect(73+sx, 25+sy, 30, 3, 1)
+    else:
+
+        # draw eyes (same as normal)
+        fill_circle(40+sx, 25+sy, 15)
+        fill_circle(88+sx, 25+sy, 15)
+
+        fill_circle(40+sx + ox, 25+sy + oy, 3, "black")
+        fill_circle(88+sx + ox, 25+sy + oy, 3, "black")
+
+        # 👇 squint amount (animated)
+        squint = 6 + int(abs(ox))   # more sideways = more squint
+
+        # top eyelids (pressing down)
+        oled.fill_rect(25+sx, 10+sy, 30, squint, 0)
+        oled.fill_rect(73+sx, 10+sy, 30, squint, 0)
+
+        # bottom eyelids (slight push up)
+        oled.fill_rect(25+sx, 35+sy, 30, 5, 0)
+        oled.fill_rect(73+sx, 35+sy, 30, 5, 0)
+
+        # eyebrow lines (focused look)
+        oled.line(25+sx, 15+sy, 50+sx, 12+sy, 1)
+        oled.line(75+sx, 12+sy, 105+sx, 15+sy, 1)
+
+    # small flat mouth (concentrating)
+    oled.fill_rect(60+sx, 50+sy, 10, 2, 1)
+
+    oled.show()
 
 def sleepy_face(sx=0, sy=0):
     ox, oy = state["offset_x"], state["offset_y"]
@@ -311,8 +350,8 @@ def sleepy_face(sx=0, sy=0):
         fill_circle(88+sx + ox, 30+sy + oy, 3, "black")
         oled.fill_rect(25+sx, 16+sy, 32, 10, 0)
         oled.fill_rect(73+sx, 16+sy, 32, 10, 0)
-        oled.fill_rect(25+sx, 16+sy, 32,  2, 1)
-        oled.fill_rect(73+sx, 16+sy, 32,  2, 1)
+        oled.fill_rect(25+sx, 18+sy, 32,  3, 1)
+        oled.fill_rect(73+sx, 18+sy, 32,  3, 1)
     oled.fill_rect(60+sx, 50+sy, 10, 2, 1)
     oled.show()
 
@@ -366,6 +405,8 @@ def render(sx=0, sy=0):
         sleeping_face(sx, sy)
     elif state["is_sleepy"]:
         sleepy_face(sx, sy)
+    elif state["is_scanning"]:
+        scan_face(sx, sy)
     else:
         normal_face(sx, sy)
 
