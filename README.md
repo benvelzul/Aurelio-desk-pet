@@ -20,6 +20,8 @@ Aurelio is not just a display — it has personality, moods, and behaviors that 
 * 😠 Reacts to rapid button presses (gets angry)
 * 🎲 Randomized behavior for “alive” feeling
 * 💥 Screen shake reactions
+* Scans room (1% chance)
+* RGB led light to show emotions
 
 ---
 
