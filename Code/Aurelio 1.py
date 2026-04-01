@@ -39,7 +39,7 @@ LOOP_DELAY       = 50
 ANNOY_DURATION   = 5000
 ANNOY_PRESSES    = 4
 SCAN_DURATION = 4000
-NORMAL_TO_SAD = 100000
+MIN_TO_SAD = 100000
 
 # ─────────────────────────────────────────
 # STATE
@@ -264,7 +264,7 @@ def update_sadness(now):
             and not state["is_sleeping"]
             and not state["is_sleepy"]
             and state["anger_level"] == 0
-            and elapsed(state["last_interaction"]) > NORMAL_TO_SAD
+            and elapsed(state["last_interaction"]) > MIN_TO_SAD
             and random.random() > 0.7):
         state["is_sad"] = True
         print("[SAD] start")
