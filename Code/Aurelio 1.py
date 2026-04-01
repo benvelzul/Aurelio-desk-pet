@@ -387,10 +387,10 @@ def sleeping_face(sx=0, sy=0):
     oled.show()
 
 def annoyed_face(sx=0, sy=0):
-    set_rgb(15000 * lvl, 0, 0)
     ox, oy = state["offset_x"], state["offset_y"]
     lvl    = state["anger_level"]
     oled.fill(0)
+    set_rgb(15000 * lvl, 0, 0)
 
     # brows get thicker and more angled with anger level
     brow_thickness = 1 + lvl
