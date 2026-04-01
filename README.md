@@ -22,6 +22,7 @@ Aurelio is not just a display — it has personality, moods, and behaviors that 
 * 💥 Screen shake reactions
 * Scans room (1% chance)
 * RGB led light to show emotions
+* Gets sad when not used for some time
 
 ---
 
@@ -33,6 +34,7 @@ Aurelio behaves like a small digital creature:
 * **Sleepy** → Eyes droop after inactivity
 * **Sleeping** → Fully asleep with minimal movement
 * **Angry** → Triggered by rapid interaction
+* **Sad** → Triggered by little movement
 
 ---
 
@@ -41,6 +43,7 @@ Aurelio behaves like a small digital creature:
 * Raspberry Pi Pico
 * SSD1306 OLED (I2C)
 * Push button
+* RGB led
 
 ---
 
@@ -57,7 +60,19 @@ Aurelio behaves like a small digital creature:
 * Personality system (sleepy + angry)
 * Improved timing
 * Screen shake
-* anger levels
+* Anger levels
+
+### V1.3
+* Better animations
+* Better and more anger levels
+* Scan mode
+
+### V1.4
+* Added RGB light
+* Different colour for each emotion
+
+### V1.5 
+* Added new emotion - sadness
 
 ---
 
