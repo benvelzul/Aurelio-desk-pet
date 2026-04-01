@@ -90,7 +90,8 @@ state = {
     "scan_dir":    1,
     
     # Sadness
-    "is_sad": False,    
+    "is_sad": False,
+    "sad_end": 0,
 }
 
 # ─────────────────────────────────────────
@@ -209,7 +210,10 @@ def update_scan(now):
 # MOOD
 # ─────────────────────────────────────────
 def update_mood(now):
-    if not state["is_sleepy"] and not state["is_sleeping"] and state["anger_level"] == 0 and not state["is_sad"]:
+    if (not state["is_sleepy"]
+            and not state["is_sleeping"]
+            and not state["is_sad"]
+            and state["anger_level"] == 0):
         if elapsed(state["last_interaction"]) > AWAKE_TO_SLEEPY:
             state["is_sleepy"]    = True
             state["sleepy_start"] = now
@@ -260,14 +264,22 @@ def update_anger(now):
 # SADNESS
 # ─────────────────────────────────────────
 def update_sadness(now):
+    # trigger sadness
     if (not state["is_sad"]
             and not state["is_sleeping"]
             and not state["is_sleepy"]
             and state["anger_level"] == 0
             and elapsed(state["last_interaction"]) > MIN_TO_SAD
             and random.random() > 0.7):
+        
         state["is_sad"] = True
+        state["sad_end"] = now + random.randint(8000, 20000)  # sad for 8-20 seconds
         print("[SAD] start")
+
+    # end sadness
+    if state["is_sad"] and ticks_after(now, state["sad_end"]):
+        state["is_sad"] = False
+        print("[SAD] end")
 
 # ─────────────────────────────────────────
 # BUTTON
@@ -498,5 +510,3 @@ while True:
     render(sx, sy)
 
     time.sleep_ms(LOOP_DELAY)
-    
-
