@@ -447,7 +447,7 @@ def annoyed_face(sx=0, sy=0):
 
     oled.show()
 
-def sad_face(sx=0, sy=0):
+def sad_faceg(sx=0, sy=0):
     set_rgb(0, 0, 8000)        # blue — sad
     ox, oy = state["offset_x"], state["offset_y"]
     oled.fill(0)
@@ -469,6 +469,31 @@ def sad_face(sx=0, sy=0):
     # frown — small downward curve using pixels
     for i in range(10):
         oled.pixel(59+sx + i, 54+sy + (0 if 1 < i < 8 else 2), 1)
+
+    oled.show()
+    
+def sad_face(sx=0, sy=0):
+    set_rgb(0, 0, 8000)        # blue — sad
+    ox, oy = state["offset_x"], state["offset_y"]
+    oled.fill(0)
+
+    if state["is_blinking"]:
+        oled.fill_rect(25+sx, 25+sy, 30, 2, 1)
+        oled.fill_rect(73+sx, 25+sy, 30, 2, 1)
+    else:
+        # normal eyes
+        fill_circle(40+sx,      25+sy, 15)
+        fill_circle(88+sx,      25+sy, 15)
+        fill_circle(40+sx + ox, 25+sy + oy, 3, "black")
+        fill_circle(88+sx + ox, 25+sy + oy, 3, "black")
+
+        # sad brows — angled the opposite way to angry (outer edge lower)
+        draw_thick_line(25+sx, 10+sy, 50+sx, 7+sy, 2)   # left brow droops left
+        draw_thick_line(76+sx, 7+sy, 101+sx, 10+sy, 2)  # right brow droops right
+
+    # frown — small downward curve using pixels
+    for i in range(10):
+        oled.pixel(59+sx + i, 54+sy + (0 if 1 > i > 8 else 2), 1)
 
     oled.show()
 
