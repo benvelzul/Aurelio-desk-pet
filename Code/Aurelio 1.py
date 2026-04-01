@@ -264,7 +264,8 @@ def update_sadness(now):
             and not state["is_sleeping"]
             and not state["is_sleepy"]
             and state["anger_level"] == 0
-            and elapsed(state["last_interaction"]) > NORMAL_TO_SAD):
+            and elapsed(state["last_interaction"]) > NORMAL_TO_SAD
+            and random.random() > 0.7):
         state["is_sad"] = True
         print("[SAD] start")
 
@@ -498,3 +499,4 @@ while True:
 
     time.sleep_ms(LOOP_DELAY)
     
+
