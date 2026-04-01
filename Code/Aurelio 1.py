@@ -33,12 +33,13 @@ def ticks_after(now, end):
 # ─────────────────────────────────────────
 BLINK_COOLDOWN   = 2000
 BLINK_DURATION   = 150
-AWAKE_TO_SLEEPY  = 100000
+AWAKE_TO_SLEEPY  = 200000
 SLEEPY_TO_SLEEP  = 10000
 LOOP_DELAY       = 50
 ANNOY_DURATION   = 5000
 ANNOY_PRESSES    = 4
 SCAN_DURATION = 4000
+NORMAL_TO_SAD = 100000
 
 # ─────────────────────────────────────────
 # STATE
@@ -87,6 +88,9 @@ state = {
     "is_scanning": False,
     "scan_end":    0,
     "scan_dir":    1,
+    
+    # Sadness
+    "is_sad": False,    
 }
 
 # ─────────────────────────────────────────
@@ -205,8 +209,7 @@ def update_scan(now):
 # MOOD
 # ─────────────────────────────────────────
 def update_mood(now):
-    # don't go sleepy while angry
-    if not state["is_sleepy"] and not state["is_sleeping"] and state["anger_level"] == 0:
+    if not state["is_sleepy"] and not state["is_sleeping"] and state["anger_level"] == 0 and not state["is_sad"]:
         if elapsed(state["last_interaction"]) > AWAKE_TO_SLEEPY:
             state["is_sleepy"]    = True
             state["sleepy_start"] = now
@@ -223,6 +226,7 @@ def wake_up(now):
     state["is_sleepy"]        = False
     state["is_sleeping"]      = False
     state["is_blinking"]      = False
+    state["is_sad"]           = False 
     state["last_blink"]       = now
     print("[MOOD] awake")
 
@@ -251,6 +255,18 @@ def update_anger(now):
             # still angry, reset timer for next decay
             state["annoy_end"] = now + ANNOY_DURATION
         print(f"[ANGER] decay -> {state['anger_level']}")
+        
+# ─────────────────────────────────────────
+# SADNESS
+# ─────────────────────────────────────────
+def update_sadness(now):
+    if (not state["is_sad"]
+            and not state["is_sleeping"]
+            and not state["is_sleepy"]
+            and state["anger_level"] == 0
+            and elapsed(state["last_interaction"]) > NORMAL_TO_SAD):
+        state["is_sad"] = True
+        print("[SAD] start")
 
 # ─────────────────────────────────────────
 # BUTTON
@@ -418,12 +434,39 @@ def annoyed_face(sx=0, sy=0):
 
     oled.show()
 
+def sad_face(sx=0, sy=0):
+    set_rgb(0, 0, 8000)        # blue — sad
+    ox, oy = state["offset_x"], state["offset_y"]
+    oled.fill(0)
+
+    if state["is_blinking"]:
+        oled.fill_rect(25+sx, 25+sy, 30, 2, 1)
+        oled.fill_rect(73+sx, 25+sy, 30, 2, 1)
+    else:
+        # normal eyes
+        fill_circle(40+sx,      25+sy, 15)
+        fill_circle(88+sx,      25+sy, 15)
+        fill_circle(40+sx + ox, 25+sy + oy, 3, "black")
+        fill_circle(88+sx + ox, 25+sy + oy, 3, "black")
+
+        # sad brows — angled the opposite way to angry (outer edge lower)
+        draw_thick_line(25+sx, 10+sy, 50+sx, 7+sy, 2)   # left brow droops left
+        draw_thick_line(76+sx, 7+sy, 101+sx, 10+sy, 2)  # right brow droops right
+
+    # frown — small downward curve using pixels
+    for i in range(10):
+        oled.pixel(59+sx + i, 54+sy + (0 if 1 < i < 8 else 2), 1)
+
+    oled.show()
+
 # ─────────────────────────────────────────
 # RENDER
 # ─────────────────────────────────────────
 def render(sx=0, sy=0):
     if state["anger_level"] > 0:
         annoyed_face(sx, sy)
+    elif state["is_sad"]:
+        sad_face(sx, sy)        # ← add this
     elif state["is_sleeping"]:
         sleeping_face(sx, sy)
     elif state["is_sleepy"]:
@@ -444,6 +487,7 @@ while True:
 
     update_mood(now)
     update_anger(now)
+    update_sadness(now)
     try_blink(now)
     update_blink(now)
     update_eye_offset(now)
