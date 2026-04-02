@@ -298,7 +298,7 @@ def update_happiness(now):
             and state["anger_level"] == 0
             and elapsed(state["last_interaction"]) < 3000   # recently touched
             and elapsed(state["last_interaction"]) > 200    # but not mid-press
-            and random.random() < 0.1):
+            and random.random() < 0.3):
         state["is_happy"]  = True
         state["happy_end"] = now + random.randint(3000, 6000)
         print("[HAPPY] start")
@@ -320,6 +320,7 @@ def handle_button(now):
     time.sleep_ms(30)
     was_sleeping = state["is_sleeping"]
     was_sleepy = state["is_sleepy"]
+    was_sad = state["is_sad"]
     wake_up(now)
 
     # waking from sleep = annoyed 10% chance
@@ -327,6 +328,9 @@ def handle_button(now):
         trigger_annoy(now, "wake")
         
     if was_sleepy:
+        state["is_happy"]
+        
+    if was_sad:
         state["is_happy"]
 
     if elapsed(state["last_press_time"]) < 1000:
