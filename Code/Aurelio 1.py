@@ -49,6 +49,7 @@ state = {
     "is_sleepy":    False,
     "is_sleeping":  False,
     "sleepy_start": ms(),
+    "sleeping_start": ms(),
 
     # blink
     "is_blinking": False,
@@ -226,6 +227,7 @@ def update_mood(now):
     if state["is_sleepy"] and elapsed(state["sleepy_start"]) > SLEEPY_TO_SLEEP:
         state["is_sleepy"]   = False
         state["is_sleeping"] = True
+        state["sleeping_start"] = ms()
         start_shake(intensity=2, duration=200)
         print("[MOOD] sleeping")
 
@@ -321,17 +323,20 @@ def handle_button(now):
     was_sleeping = state["is_sleeping"]
     was_sleepy = state["is_sleepy"]
     was_sad = state["is_sad"]
+    time_sleeping = state["sleeping_start"]
     wake_up(now)
-
-    # waking from sleep = annoyed 10% chance
-    if was_sleeping and random.random() > 0.1:
+    
+    if was_sleeping and random.random() > 0.5 and 600000 < (ms()-time_sleeping):
+        state["is_happy"] = True
+        
+    elif was_sleeping and random.random() > 0.1:
         trigger_annoy(now, "wake")
         
     if was_sleepy:
-        state["is_happy"]
+        state["is_happy"] = True
         
     if was_sad:
-        state["is_happy"]
+        state["is_happy"] = True
 
     if elapsed(state["last_press_time"]) < 1000:
         state["press_count"] += 1
