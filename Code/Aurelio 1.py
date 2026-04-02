@@ -32,7 +32,7 @@ def ticks_after(now, end):
 # CONSTANTS
 # ─────────────────────────────────────────
 BLINK_COOLDOWN   = 2000
-BLINK_DURATION   = 150
+BLINK_DURATION   = 100
 AWAKE_TO_SLEEPY  = 200000
 SLEEPY_TO_SLEEP  = 10000
 LOOP_DELAY       = 50
