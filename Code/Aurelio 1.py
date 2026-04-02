@@ -507,7 +507,7 @@ def sad_face(sx=0, sy=0):
     oled.show()
     
 def happy_face(sx=0, sy=0):
-    set_rgb(30000, 36000, 0)        # blue — sad
+    set_rgb(36500, 30000, 0)        # blue — sad
     ox, oy = state["offset_x"], state["offset_y"]
     oled.fill(0)
 
