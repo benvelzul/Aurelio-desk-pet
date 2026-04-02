@@ -37,7 +37,7 @@ AWAKE_TO_SLEEPY  = 200000
 SLEEPY_TO_SLEEP  = 10000
 LOOP_DELAY       = 50
 ANNOY_DURATION   = 5000
-ANNOY_PRESSES    = 4
+ANNOY_PRESSES    = 3
 SCAN_DURATION = 4000
 MIN_TO_SAD = 100000
 
@@ -75,7 +75,7 @@ state = {
     "z_dir":    1,
     "z_timer":  ms(),
 
-    # anger (levels 0-3, decays over time)
+    # anger (levels 0-4, decays over time)
     "anger_level":   0,
     "annoy_end":     0,
     "annoy_trigger": "",
@@ -298,7 +298,7 @@ def update_happiness(now):
             and state["anger_level"] == 0
             and elapsed(state["last_interaction"]) < 3000   # recently touched
             and elapsed(state["last_interaction"]) > 200    # but not mid-press
-            and random.random() < 0.03):
+            and random.random() < 0.1):
         state["is_happy"]  = True
         state["happy_end"] = now + random.randint(3000, 6000)
         print("[HAPPY] start")
