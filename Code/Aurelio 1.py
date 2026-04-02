@@ -197,7 +197,7 @@ def update_scan(now):
     if (not state["is_scanning"]
             and not state["is_sleeping"]
             and state["anger_level"] == 0
-            and random.random() < 0.005):
+            and random.uniform(0, 1) < 0.003):
         state["is_scanning"] = True
         state["scan_end"]    = now + SCAN_DURATION
         print("[SCAN] start")
