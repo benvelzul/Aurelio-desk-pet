@@ -277,7 +277,7 @@ def update_sadness(now):
             and not state["is_sleepy"]
             and state["anger_level"] == 0
             and elapsed(state["last_interaction"]) > MIN_TO_SAD
-            and random.random() > 0.7):
+            and random.random() > 0.9):
         
         state["is_sad"] = True
         state["sad_end"] = now + random.randint(8000, 20000)  # sad for 8-20 seconds
