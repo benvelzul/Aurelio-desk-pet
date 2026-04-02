@@ -92,6 +92,10 @@ state = {
     # Sadness
     "is_sad": False,
     "sad_end": 0,
+    
+    # happiness
+    "is_happy":  False,
+    "happy_end": 0,
 }
 
 # ─────────────────────────────────────────
@@ -192,7 +196,7 @@ def update_scan(now):
     if (not state["is_scanning"]
             and not state["is_sleeping"]
             and state["anger_level"] == 0
-            and random.random() < 0.01):
+            and random.random() < 0.005):
         state["is_scanning"] = True
         state["scan_end"]    = now + SCAN_DURATION
         print("[SCAN] start")
@@ -230,7 +234,8 @@ def wake_up(now):
     state["is_sleepy"]        = False
     state["is_sleeping"]      = False
     state["is_blinking"]      = False
-    state["is_sad"]           = False 
+    state["is_sad"]           = False
+    state["is_happy"]         = False
     state["last_blink"]       = now
     print("[MOOD] awake")
 
@@ -280,7 +285,28 @@ def update_sadness(now):
     if state["is_sad"] and ticks_after(now, state["sad_end"]):
         state["is_sad"] = False
         print("[SAD] end")
+        
+# ─────────────────────────────────────────
+# HAPPINESS
+# ─────────────────────────────────────────
+def update_happiness(now):
+    # trigger after a button press when calm and awake
+    if (not state["is_happy"]
+            and not state["is_sleeping"]
+            and not state["is_sleepy"]
+            and not state["is_sad"]
+            and state["anger_level"] == 0
+            and elapsed(state["last_interaction"]) < 3000   # recently touched
+            and elapsed(state["last_interaction"]) > 200    # but not mid-press
+            and random.random() < 0.03):
+        state["is_happy"]  = True
+        state["happy_end"] = now + random.randint(3000, 6000)
+        print("[HAPPY] start")
 
+    if state["is_happy"] and ticks_after(now, state["happy_end"]):
+        state["is_happy"] = False
+        print("[HAPPY] end")
+        
 # ─────────────────────────────────────────
 # BUTTON
 # ─────────────────────────────────────────
@@ -293,11 +319,15 @@ def handle_button(now):
     oled.invert(0); oled.show()
     time.sleep_ms(30)
     was_sleeping = state["is_sleeping"]
+    was_sleepy = state["is_sleepy"]
     wake_up(now)
 
-    # waking from sleep = annoyed (70% chance)
+    # waking from sleep = annoyed 10% chance
     if was_sleeping and random.random() > 0.1:
         trigger_annoy(now, "wake")
+        
+    if was_sleepy:
+        state["is_happy"]
 
     if elapsed(state["last_press_time"]) < 1000:
         state["press_count"] += 1
@@ -447,8 +477,8 @@ def annoyed_face(sx=0, sy=0):
 
     oled.show()
 
-def sad_faceg(sx=0, sy=0):
-    set_rgb(0, 0, 8000)        # blue — sad
+def sad_face(sx=0, sy=0):
+    set_rgb(0, 0, 60000)        # blue — sad
     ox, oy = state["offset_x"], state["offset_y"]
     oled.fill(0)
 
@@ -472,8 +502,8 @@ def sad_faceg(sx=0, sy=0):
 
     oled.show()
     
-def sad_face(sx=0, sy=0):
-    set_rgb(0, 0, 8000)        # blue — sad
+def happy_face(sx=0, sy=0):
+    set_rgb(30000, 36000, 0)        # blue — sad
     ox, oy = state["offset_x"], state["offset_y"]
     oled.fill(0)
 
@@ -487,13 +517,9 @@ def sad_face(sx=0, sy=0):
         fill_circle(40+sx + ox, 25+sy + oy, 3, "black")
         fill_circle(88+sx + ox, 25+sy + oy, 3, "black")
 
-        # sad brows — angled the opposite way to angry (outer edge lower)
-        draw_thick_line(25+sx, 10+sy, 50+sx, 7+sy, 2)   # left brow droops left
-        draw_thick_line(76+sx, 7+sy, 101+sx, 10+sy, 2)  # right brow droops right
-
     # frown — small downward curve using pixels
     for i in range(10):
-        oled.pixel(59+sx + i, 54+sy + (0 if 1 > i > 8 else 2), 1)
+        oled.pixel(59+sx + i, 54+sy + (2 if 1 < i < 8 else 0), 1)
 
     oled.show()
 
@@ -503,8 +529,10 @@ def sad_face(sx=0, sy=0):
 def render(sx=0, sy=0):
     if state["anger_level"] > 0:
         annoyed_face(sx, sy)
+    elif state["is_happy"]: 
+        happy_face(sx, sy)
     elif state["is_sad"]:
-        sad_face(sx, sy)        # ← add this
+        sad_face(sx, sy)
     elif state["is_sleeping"]:
         sleeping_face(sx, sy)
     elif state["is_sleepy"]:
@@ -526,6 +554,7 @@ while True:
     update_mood(now)
     update_anger(now)
     update_sadness(now)
+    update_happiness(now)
     try_blink(now)
     update_blink(now)
     update_eye_offset(now)
