@@ -364,6 +364,94 @@ def draw_zzz(sx, sy):
     draw_z(113+sx,  0-o+sy, 8)
 
 # ─────────────────────────────────────────
+# STARTUP
+# ─────────────────────────────────────────
+def startup_animation():
+    # ── Phase 1: screen flashes ──────────
+    oled.fill(0)
+    oled.show()
+    
+    colours = [
+        (65535, 0, 0),      # red
+        (0, 65535, 0),      # green
+        (0, 0, 65535),      # blue
+        (65535, 65535, 0),  # yellow
+    ]
+    
+    for i in range(3):
+        set_rgb(*colours[i % len(colours)])
+        oled.invert(1)
+        oled.show()
+        time.sleep_ms(120)
+        oled.invert(0)
+        oled.show()
+        time.sleep_ms(120)
+    
+    set_rgb(0, 0, 0)
+    time.sleep_ms(200)
+
+    # ── Phase 2: closed eyes appear ──────
+    oled.fill(0)
+    oled.show()
+    time.sleep_ms(300)
+    
+    set_rgb(0, 0, 3000)     # dim blue while waking
+    
+    # closed eyes
+    oled.fill_rect(25, 25, 30, 2, 1)
+    oled.fill_rect(73, 25, 30, 2, 1)
+    oled.show()
+    time.sleep_ms(500)
+    
+    # mouth appears
+    oled.fill_rect(60, 50, 10, 2, 1)
+    oled.show()
+    time.sleep_ms(600)
+
+    # ── Phase 3: eyes open slowly ────────
+    # simulate opening by drawing progressively taller eyes
+    # starting from a line, growing into full circles
+    sizes = [2, 5, 8, 11, 15]
+    
+    for r in sizes:
+        oled.fill(0)
+        set_rgb(0, 0, int(3000 + r * 800))   # gets brighter as eyes open
+        fill_circle(40, 25, r)
+        fill_circle(88, 25, r)
+        # pupils
+        if r >= 8:
+            fill_circle(40, 25, max(1, r - 10), "black")
+            fill_circle(88, 25, max(1, r - 10), "black")
+        # keep mouth
+        oled.fill_rect(60, 50, 10, 2, 1)
+        oled.show()
+        time.sleep_ms(120)
+
+    # ── Phase 4: eyes open flash ─────────
+    time.sleep_ms(200)
+    
+    flash_colours = [
+        (65535, 0,     0),
+        (0,     65535, 0),
+        (0,     0,     65535),
+        (65535, 65535, 0),
+        (65535, 0,     65535),
+    ]
+    for c in flash_colours:
+        set_rgb(*c)
+        oled.invert(1)
+        oled.show()
+        time.sleep_ms(80)
+        oled.invert(0)
+        oled.show()
+        time.sleep_ms(80)
+
+    # settle into normal blue
+    set_rgb(0, 0, 3000)
+    time.sleep_ms(300)
+    print("[BOOT] Startup animation done")
+    
+# ─────────────────────────────────────────
 # FACES
 # ─────────────────────────────────────────
 def normal_face(sx=0, sy=0):
@@ -507,7 +595,7 @@ def sad_face(sx=0, sy=0):
     oled.show()
     
 def happy_face(sx=0, sy=0):
-    set_rgb(36500, 30000, 0)        # blue — sad
+    set_rgb(36500, 30000, 0)      # yellow - happy
     ox, oy = state["offset_x"], state["offset_y"]
     oled.fill(0)
 
@@ -549,6 +637,8 @@ def render(sx=0, sy=0):
 # ─────────────────────────────────────────
 # MAIN LOOP
 # ─────────────────────────────────────────
+#start up
+startup_animation()
 while True:
     now = ms()
 
