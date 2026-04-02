@@ -23,6 +23,7 @@ Aurelio is not just a display — it has personality, moods, and behaviors that 
 * Scans room (1% chance)
 * RGB led light to show emotions
 * Gets sad when not used for some time
+* Gets happy after intearction
 
 ---
 
@@ -34,7 +35,8 @@ Aurelio behaves like a small digital creature:
 * **Sleepy** → Eyes droop after inactivity
 * **Sleeping** → Fully asleep with minimal movement
 * **Angry** → Triggered by rapid interaction
-* **Sad** → Triggered by little movement
+* **Sad** → Triggered by little to no movement
+* **Happy** → Triggered by interaction with Aurelio 
 
 ---
 
@@ -73,6 +75,9 @@ Aurelio behaves like a small digital creature:
 
 ### V1.5 
 * Added new emotion - sadness
+
+### V1.6
+* Added new emotion - happiness
 
 ---
 
