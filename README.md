@@ -14,16 +14,17 @@ Aurelio is not just a display — it has personality, moods, and behaviors that 
 
 ## ✨ Features
 
-* 👀 Animated eyes with smooth movement
-* 👁️ Natural blinking
-* 😴 Idle → sleepy → sleeping states
-* 😠 Reacts to rapid button presses (gets angry)
-* 🎲 Randomized behavior for “alive” feeling
-* 💥 Screen shake reactions
+* Animated eyes with smooth movement
+* Natural blinking
+* Idle → sleepy → sleeping states
+* Reacts to rapid button presses (gets angry)
+* Randomized behavior for “alive” feeling
+* Screen shake reactions
 * Scans room (1% chance)
 * RGB led light to show emotions
 * Gets sad when not used for some time
 * Gets happy after intearction
+* Has a startup animation
 
 ---
 
@@ -78,18 +79,16 @@ Aurelio behaves like a small digital creature:
 
 ### V1.6
 * Added new emotion - happiness
-
+### V1.7
+* Startup animation 
 ---
 
 ## 🚀 Future Plans
 
-* 🌦️ Weather-based personality
-* 🤖 Servo movement (head/eyes)
-* 🔊 Sound reactions
-* 🧠 Smarter AI behavior system
+* Weather-based personality
+* Servo movement (head/eyes)
+* Sound reactions
+* Smarter AI behavior system
+* Memory system
 
 ---
-
-## 📜 License
-
-MIT License
