@@ -10,12 +10,15 @@ i2c    = I2C(0, scl=Pin(1), sda=Pin(0))
 oled   = ssd1306.SSD1306_I2C(128, 64, i2c)
 button = Pin(15, Pin.IN, Pin.PULL_UP)
 vibration = Pin(16, Pin.IN, Pin.PULL_UP)
+buzzer = PWM(Pin(17))
+buzzer.freq(1000)
 R = PWM(Pin(7), freq=1000)
 G = PWM(Pin(8), freq=1000)
 B = PWM(Pin(9), freq=1000)
 R.duty_u16(0)
 G.duty_u16(0)
 B.duty_u16(0)
+buzzer.duty_u16(0)
 
 # ─────────────────────────────────────────
 # TIME HELPERS
@@ -44,6 +47,8 @@ MIN_TO_SAD = 100000
 VIBE_WINDOW      = 1000 
 VIBE_THRESHOLD   = 3
 ANNOY_PICKUP = 4
+VIBE_ANGRY_THRESHOLD = 6
+VOLUME = 500
 
 # ─────────────────────────────────────────
 # STATE
@@ -106,6 +111,11 @@ state = {
     "last_vibration":     0,
     "vibration_count":    0,
     "vibe_window_start":  0,
+    
+    # sound
+    "sound_queue":    [],
+    "sound_step_end": 0,
+    "sound_step_idx": 0,
 }
 
 # ─────────────────────────────────────────
@@ -155,6 +165,55 @@ def set_rgb(r=0, g=0, b=0):
     R.duty_u16(r)
     G.duty_u16(g)
     B.duty_u16(b)
+    
+# ─────────────────────────────────────────
+# NON-BLOCKING SOUND
+# ─────────────────────────────────────────
+def queue_sound(steps):
+    """steps = list of (freq, duty, duration_ms). 0 freq = silence."""
+    state["sound_queue"]    = steps
+    state["sound_step_idx"] = 0
+    state["sound_step_end"] = 0   # force immediate start
+
+def update_sound(now):
+    if not state["sound_queue"]:
+        return
+    idx = state["sound_step_idx"]
+    if idx >= len(state["sound_queue"]):
+        buzzer.duty_u16(0)
+        state["sound_queue"] = []
+        return
+    # advance to next step when current one expires
+    if ticks_after(now, state["sound_step_end"]):
+        freq, duty, dur = state["sound_queue"][idx]
+        if freq == 0 or duty == 0:
+            buzzer.duty_u16(0)
+        else:
+            buzzer.freq(freq)
+            buzzer.duty_u16(duty)
+        state["sound_step_end"] = now + dur
+        state["sound_step_idx"] += 1
+
+# ── Sound presets ──────────────────────
+SIL = (0, 0, 40)   # short silence gap
+
+def play_beep():
+    queue_sound([(1200, VOLUME, 40)])
+
+def play_happy():
+    queue_sound([(1200, VOLUME, 40), SIL, (1600, VOLUME, 50)])
+
+def play_sad():
+    queue_sound([(800, VOLUME, 120), SIL, (500, VOLUME, 150)])
+
+def play_angry():
+    queue_sound([(300, VOLUME, 80), SIL, (300, VOLUME, 80), SIL, (300, VOLUME, 80)])
+
+def play_sleep():
+    queue_sound([(400, VOLUME, 200)])
+
+def play_wakeup():
+    queue_sound([(600, VOLUME, 80), (900, VOLUME, 80), (1300, VOLUME, 100)])
     
 # ─────────────────────────────────────────
 # SHAKE
@@ -234,6 +293,7 @@ def update_mood(now):
             print("[MOOD] sleepy")
 
     if state["is_sleepy"] and elapsed(state["sleepy_start"]) > SLEEPY_TO_SLEEP:
+        play_sleep()
         state["is_sleepy"]   = False
         state["is_sleeping"] = True
         state["sleeping_start"] = ms()
@@ -241,6 +301,7 @@ def update_mood(now):
         print("[MOOD] sleeping")
 
 def wake_up(now):
+    play_wakeup()
     state["last_interaction"] = now
     state["is_sleepy"]        = False
     state["is_sleeping"]      = False
@@ -254,6 +315,7 @@ def wake_up(now):
 # ANGER
 # ─────────────────────────────────────────
 def trigger_annoy(now, reason=""):
+    play_angry()
     # each trigger bumps anger up, max level 3
     state["anger_level"]   = min(4, state["anger_level"] + 1)
     state["annoy_end"]     = now + ANNOY_DURATION
@@ -289,6 +351,7 @@ def update_sadness(now):
             and random.random() > 0.9):
         
         state["is_sad"] = True
+        play_sad()
         state["sad_end"] = now + random.randint(8000, 20000)  # sad for 8-20 seconds
         print("[SAD] start")
 
@@ -311,6 +374,7 @@ def update_happiness(now):
             and elapsed(state["last_interaction"]) > 200    # but not mid-press
             and random.random() < 0.3):
         state["is_happy"]  = True
+        play_happy()
         state["happy_end"] = now + random.randint(3000, 6000)
         print("[HAPPY] start")
 
@@ -324,28 +388,36 @@ def update_happiness(now):
 def handle_button(now):
     if button.value():
         return
-    
+
+    play_beep()
     oled.invert(1); oled.show()
     time.sleep_ms(30)
     oled.invert(0); oled.show()
     time.sleep_ms(30)
+
     was_sleeping = state["is_sleeping"]
-    was_sleepy = state["is_sleepy"]
-    was_sad = state["is_sad"]
+    was_sleepy   = state["is_sleepy"]
+    was_sad      = state["is_sad"]
     time_sleeping = state["sleeping_start"]
-    wake_up(now)
-    
-    if was_sleeping and random.random() > 0.5 and 600000 < (ms()-time_sleeping):
-        state["is_happy"] = True
-        
-    elif was_sleeping and random.random() > 0.1:
-        trigger_annoy(now, "wake")
-        
-    if was_sleepy:
-        state["is_happy"] = True
-        
+
+    # ── only wake up if actually asleep/sleepy ──
+    if was_sleeping or was_sleepy:
+        wake_up(now)
+
+        if was_sleeping and random.random() > 0.5 and 600000 < (ms() - time_sleeping):
+            state["is_happy"] = True
+        elif was_sleeping and random.random() > 0.1:
+            trigger_annoy(now, "wake")
+
+        if was_sleepy:
+            state["is_happy"] = True
+    else:
+        # already awake — just update interaction time
+        state["last_interaction"] = now
+
     if was_sad:
-        state["is_happy"] = True
+        state["is_sad"]    = False
+        state["is_happy"]  = True
 
     if elapsed(state["last_press_time"]) < 1000:
         state["press_count"] += 1
@@ -353,7 +425,6 @@ def handle_button(now):
         state["press_count"] = 1
     state["last_press_time"] = now
 
-    # spam = annoyed, anger can stack up to level 3
     if state["press_count"] >= ANNOY_PRESSES:
         trigger_annoy(now, "spam")
         state["press_count"] = 0
@@ -438,7 +509,7 @@ def on_picked_up(now):
             print("[VIBE] normal -> angry (shaken too much)")
 
         else:
-            # gently picked up — happy
+            # gently picked up — happy 
             state["is_happy"]  = True
             state["happy_end"] = now + random.randint(3000, 6000)
             state["last_interaction"] = now
@@ -749,6 +820,7 @@ while True:
     update_anger(now)
     update_sadness(now)
     update_happiness(now)
+    update_sound(now)
     try_blink(now)
     update_blink(now)
     update_eye_offset(now)
