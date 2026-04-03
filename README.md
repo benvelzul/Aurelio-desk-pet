@@ -25,6 +25,7 @@ Aurelio is not just a display — it has personality, moods, and behaviors that 
 * Gets sad when not used for some time
 * Gets happy after intearction
 * Has a startup animation
+* Has vibration sensor to interact better with the user
 
 ---
 
@@ -43,10 +44,12 @@ Aurelio behaves like a small digital creature:
 
 ## ⚙️ Hardware
 
-* Raspberry Pi Pico
+* Raspberry Pi Pico (version 1-1.7)
+* Raspberry Pi Pico W (version 2-)
 * SSD1306 OLED (I2C)
 * Push button
 * RGB led
+* Vibration sensor (version 2-)
 
 ---
 
@@ -79,8 +82,17 @@ Aurelio behaves like a small digital creature:
 
 ### V1.6
 * Added new emotion - happiness
+
 ### V1.7
-* Startup animation 
+* Startup animation
+
+### V2.0
+* Vibration sensor
+* Changed from Pico to Pico W
+* Gets happy when sad and then picked up
+* Gets mad when picked up (sometimes)
+* Vibration is considered interaction
+* If picked up, it wakes up
 ---
 
 ## 🚀 Future Plans
