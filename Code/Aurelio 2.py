@@ -43,6 +43,7 @@ SCAN_DURATION = 4000
 MIN_TO_SAD = 100000
 VIBE_WINDOW      = 1000 
 VIBE_THRESHOLD   = 3
+ANNOY_PICKUP = 4
 
 # ─────────────────────────────────────────
 # STATE
@@ -418,18 +419,31 @@ def on_picked_up(now):
         print("[VIBE] angry -> more angry")
 
     elif state["is_happy"]:
-        # happy and picked up — stays happy longer
-        state["happy_end"] = now + random.randint(4000, 8000)
-        state["last_interaction"] = now
-        print("[VIBE] happy -> extended happy")
+        if hits >= VIBE_ANGRY_THRESHOLD:
+            state["is_happy"] = False
+            trigger_annoy(now, "vibe_shake")
+            print("[VIBE] happy -> angry (shaken too much)")
+        else:
+            # gentle — stays happy longer
+            state["happy_end"] = now + random.randint(4000, 8000)
+            state["last_interaction"] = now
+            print("[VIBE] happy -> extended happy")
 
     else:
-        # normal state — happy to be picked up
-        state["is_happy"]  = True
-        state["happy_end"] = now + random.randint(3000, 6000)
-        state["last_interaction"] = now
-        start_shake(2, 150)
-        print("[VIBE] normal -> happy")
+        # normal state — reaction depends on intensity
+        if hits >= VIBE_ANGRY_THRESHOLD:
+            # shaken too much — gets mad
+            trigger_annoy(now, "vibe_shake")
+            state["last_interaction"] = now
+            print("[VIBE] normal -> angry (shaken too much)")
+
+        else:
+            # gently picked up — happy
+            state["is_happy"]  = True
+            state["happy_end"] = now + random.randint(3000, 6000)
+            state["last_interaction"] = now
+            start_shake(2, 150)
+            print("[VIBE] normal -> happy")
 
 
 # ─────────────────────────────────────────
