@@ -36,6 +36,7 @@ ANNOY_DURATION   = 5000
 ANNOY_TOUCHES    = 4
 SCAN_DURATION    = 4000
 MIN_TO_SAD       = 25000
+MIN_TO_CUDDLE    = 1000
 
 # ─────────────────────────────────────────
 # STATE
@@ -81,11 +82,15 @@ state = {
     "z_dir": 1,
     "z_timer": ms(),
 
-    "touching": False
+    "touching": False,
+    "shake_intensity": 0,
+    "shake_end":       0,
+    "time_for_cuddle": 0,
+    "cuddling" : False,
+    
 }
-
 # ─────────────────────────────────────────
-# DRAW HELPERS
+# DRAW PRIMITIVES
 # ─────────────────────────────────────────
 def fill_circle(x0, y0, r, color="white"):
     c = 0 if color == "black" else 1
@@ -95,29 +100,33 @@ def fill_circle(x0, y0, r, color="white"):
                 oled.pixel(x0 + dx, y0 + dy, c)
 
 def draw_z(x, y, size):
-    oled.line(x, y, x+size, y, 1)
-    oled.line(x+size, y, x, y+size, 1)
-    oled.line(x, y+size, x+size, y+size, 1)
+    oled.line(x,      y,      x+size, y,      1)
+    oled.line(x+size, y,      x,      y+size, 1)
+    oled.line(x,      y+size, x+size, y+size, 1)
 
 def draw_thick_line(x1, y1, x2, y2, t=2):
     for i in range(t):
         oled.line(x1, y1+i, x2, y2+i, 1)
-
+        
 def angry_cross(x, y, size):
     arm = size // 4
-    gap = arm * 2 + 2
+    gap = arm * 2 + 2   # gap between the two halves
 
-    oled.line(x, y+arm, x, y, 1)
-    oled.line(x, y+arm, x-arm, y+arm, 1)
+    # top-left
+    oled.line(x,         y + arm, x,         y,       1)
+    oled.line(x,         y + arm, x - arm,   y + arm, 1)
 
-    oled.line(x+gap, y+arm, x+gap, y, 1)
-    oled.line(x+gap, y+arm, x+gap+arm, y+arm, 1)
+    # top-right
+    oled.line(x + gap,   y + arm, x + gap,         y,       1)
+    oled.line(x + gap,   y + arm, x + gap + arm,   y + arm, 1)
 
-    oled.line(x, y+gap, x, y+gap+arm, 1)
-    oled.line(x, y+gap, x-arm, y+gap, 1)
+    # bottom-left
+    oled.line(x,         y + gap, x,         y + gap +arm, 1)
+    oled.line(x,         y + gap, x - arm,   y + gap, 1)
 
-    oled.line(x+gap, y+gap, x+gap, y+gap+arm, 1)
-    oled.line(x+gap, y+gap, x+gap+arm, y+gap, 1)
+    # bottom-right
+    oled.line(x + gap,   y + gap, x + gap,       y + gap+arm, 1)
+    oled.line(x + gap,   y + gap, x + gap + arm, y + gap, 1)
 
 # ─────────────────────────────────────────
 # SHAKE EFFECT
@@ -125,36 +134,33 @@ def angry_cross(x, y, size):
 shake_intensity = 0
 shake_end = 0
 
-def start_shake(intensity=3, duration=200):
-    global shake_intensity, shake_end
-    shake_intensity = intensity
-    shake_end = ms() + duration
+def start_shake(intensity=4, duration=200):
+    state["shake_intensity"] = intensity
+    state["shake_end"]       = ms() + duration
 
-def get_shake():
-    if time.ticks_diff(shake_end, ms()) > 0:
-        return (
-            random.randint(-shake_intensity, shake_intensity),
-            random.randint(-shake_intensity, shake_intensity)
-        )
+def get_shake_offset():
+    if time.ticks_diff(state["shake_end"], ms()) > 0:
+        i = state["shake_intensity"]
+        return random.randint(-i, i), random.randint(-i, i)
     return 0, 0
 
 # ─────────────────────────────────────────
 # BLINK
 # ─────────────────────────────────────────
 def try_blink(now):
-    if state["is_blinking"] or state["is_sleeping"]:
+    if state["is_blinking"] or state["is_sleeping"] or state["anger_level"] > 0:
         return
-
     chance = 0.015 if state["is_sleepy"] else 0.04
-
     if elapsed(state["last_blink"]) > BLINK_COOLDOWN and random.random() < chance:
         state["is_blinking"] = True
-        state["blink_end"] = now + BLINK_DURATION
+        state["blink_end"]   = now + BLINK_DURATION
+        print("[BLINK] start")
 
 def update_blink(now):
     if state["is_blinking"] and ticks_after(now, state["blink_end"]):
         state["is_blinking"] = False
-        state["last_blink"] = now
+        state["last_blink"]  = now
+        print("[BLINK] end")
 
 # ─────────────────────────────────────────
 # EYE MOVEMENT
@@ -267,10 +273,21 @@ def update_happiness(now):
 def handle_touch(now):
 
     touched = touch.value()
+    
+    if state["touching"] and touched:
+        oled.invert(1)
+        oled.show()
+        time.sleep_ms(20)
 
-    if touched and not state["touching"]:
+        oled.invert(0)
+        oled.show()
+        if elapsed(state["time_for_cuddle"]) > MIN_TO_CUDDLE:
+            state["cuddling"] = True
+
+    elif touched and not state["touching"]:
 
         state["touching"] = True
+        state["time_for_cuddle"] = ms()
 
         oled.invert(1)
         oled.show()
@@ -338,7 +355,7 @@ def update_scan(now):
 # ─────────────────────────────────────────
 # ZZZ
 # ─────────────────────────────────────────
-def update_z():
+def update_z_animation():
     if elapsed(state["z_timer"]) > 100:
         state["z_offset"] += state["z_dir"]
 
@@ -361,140 +378,165 @@ def draw_zzz(sx, sy):
 # FACES
 # ─────────────────────────────────────────
 def normal_face(sx=0, sy=0):
-
     ox, oy = state["offset_x"], state["offset_y"]
-
     oled.fill(0)
-
     if state["is_blinking"]:
         oled.fill_rect(25+sx, 25+sy, 30, 3, 1)
         oled.fill_rect(73+sx, 25+sy, 30, 3, 1)
-
     else:
-        fill_circle(40+sx, 25+sy, 15)
-        fill_circle(88+sx, 25+sy, 15)
-
-        fill_circle(40+sx+ox, 25+sy+oy, 3, "black")
-        fill_circle(88+sx+ox, 25+sy+oy, 3, "black")
-
+        fill_circle(40+sx,      25+sy, 15)
+        fill_circle(88+sx,      25+sy, 15)
+        fill_circle(40+sx + ox, 25+sy + oy, 3, "black")
+        fill_circle(88+sx + ox, 25+sy + oy, 3, "black")
     oled.fill_rect(60+sx, 50+sy, 10, 2, 1)
-
     oled.show()
-
-def sleepy_face(sx=0, sy=0):
-
-    oled.fill(0)
-
-    oled.fill_rect(25+sx, 25+sy, 30, 2, 1)
-    oled.fill_rect(73+sx, 25+sy, 30, 2, 1)
-
-    oled.fill_rect(60+sx, 50+sy, 10, 2, 1)
-
-    oled.show()
-
-def sleeping_face(sx=0, sy=0):
-
-    oled.fill(0)
-
-    oled.fill_rect(25+sx, 25+sy, 30, 2, 1)
-    oled.fill_rect(73+sx, 25+sy, 30, 2, 1)
-
-    update_z()
-    draw_zzz(sx, sy)
-
-    oled.show()
-
-def happy_face(sx=0, sy=0):
-
+    
+def scan_face(sx=0, sy=0): 
+    if random.random() < 0.1:
+        state["offset_y"] = random.choice([-1, 0, 1])
     ox, oy = state["offset_x"], state["offset_y"]
 
     oled.fill(0)
+    if state["is_blinking"]:
+        oled.fill_rect(25+sx, 25+sy, 30, 3, 1)
+        oled.fill_rect(73+sx, 25+sy, 30, 3, 1)
+    else:
 
-    fill_circle(40+sx, 25+sy, 15)
-    fill_circle(88+sx, 25+sy, 15)
+        # draw eyes (same as normal)
+        fill_circle(40+sx, 25+sy, 15)
+        fill_circle(88+sx, 25+sy, 15)
 
-    fill_circle(40+sx+ox, 25+sy+oy, 3, "black")
-    fill_circle(88+sx+ox, 25+sy+oy, 3, "black")
+        fill_circle(40+sx + ox, 25+sy + oy, 3, "black")
+        fill_circle(88+sx + ox, 25+sy + oy, 3, "black")
 
+        # 👇 squint amount (animated)
+        squint = 6 + int(abs(ox))   # more sideways = more squint
+
+        # top eyelids (pressing down)
+        oled.fill_rect(25+sx, 10+sy, 30, squint, 0)
+        oled.fill_rect(73+sx, 10+sy, 30, squint, 0)
+
+        # bottom eyelids (slight push up)
+        oled.fill_rect(25+sx, 35+sy, 30, 5, 0)
+        oled.fill_rect(73+sx, 35+sy, 30, 5, 0)
+
+        # eyebrow lines (focused look)
+        oled.line(25+sx, 7+sy+squint, 55+sx, 7+sy+squint, 1)
+        oled.line(74+sx, 7+sy+squint, 104+sx, 7+sy+squint, 1)
+
+    # small flat mouth (concentrating)
+    oled.fill_rect(60+sx, 50+sy, 10, 2, 1)
+
+    oled.show()
+    
+def cuddling_face(sx=0, sy=0):
+    oled.fill(0)
+    oled.fill_rect(25+sx, 25+sy, 30, 2, 1)
+    oled.fill_rect(73+sx, 25+sy, 30, 2, 1)
     for i in range(10):
-        oled.pixel(59+sx+i, 54+sy + (2 if 1 < i < 8 else 0), 1)
+        oled.pixel(59+sx + i, 54+sy + (2 if 1 < i < 8 else 0), 1)
+    update_z_animation()
+    oled.show()
+
+def sleepy_face(sx=0, sy=0):
+    ox, oy = state["offset_x"], state["offset_y"]
+    oled.fill(0)
+    if state["is_blinking"]:
+        oled.fill_rect(25+sx, 25+sy, 30, 2, 1)
+        oled.fill_rect(73+sx, 25+sy, 30, 2, 1)
+    else:
+        fill_circle(40+sx,      28+sy, 13)
+        fill_circle(88+sx,      28+sy, 13)
+        fill_circle(40+sx + ox, 30+sy + oy, 3, "black")
+        fill_circle(88+sx + ox, 30+sy + oy, 3, "black")
+        oled.fill_rect(25+sx, 16+sy, 32, 10, 0)
+        oled.fill_rect(73+sx, 16+sy, 32, 10, 0)
+        oled.fill_rect(25+sx, 18+sy, 32,  3, 1)
+        oled.fill_rect(73+sx, 18+sy, 32,  3, 1)
+    oled.fill_rect(60+sx, 50+sy, 10, 2, 1)
+    oled.show()
+
+def sleeping_face(sx=0, sy=0):
+    oled.fill(0)
+    oled.fill_rect(25+sx, 25+sy, 30, 2, 1)
+    oled.fill_rect(73+sx, 25+sy, 30, 2, 1)
+    oled.fill_rect(60+sx, 50+sy, 10, 2, 1)
+    update_z_animation()
+    draw_zzz(sx, sy)
+    oled.show()
+
+def annoyed_face(sx=0, sy=0):
+    ox, oy = state["offset_x"], state["offset_y"]
+    lvl    = state["anger_level"]
+    oled.fill(0)
+
+    # brows get thicker and more angled with anger level
+    brow_thickness = 1 + lvl
+    brow_slant     = 2 * lvl
+    draw_thick_line(25+sx, 5-brow_slant+sy, 50+sx, 10+sy,     brow_thickness)
+    draw_thick_line(75+sx, 10+sy,     100+sx, 4-brow_slant+sy, brow_thickness)
+
+    # eyes
+    fill_circle(40+sx,      30+sy, 15)
+    fill_circle(88+sx,      30+sy, 15)
+
+    # pulsing pupils
+    state["pulse"] += state["pulse_dir"]
+    if state["pulse"] >= 4:   state["pulse_dir"] = -0.5
+    if state["pulse"] <= 1:   state["pulse_dir"] =  0.5
+    p = int(state["pulse"])
+    fill_circle(40+sx + ox, 30+sy + oy, p, "black")
+    fill_circle(88+sx + ox, 30+sy + oy, p, "black")
+    
+    if lvl > 3:
+        angry_cross(110, 4, 12)
+
+    # mouth gets wider/thicker with anger level
+    oled.fill_rect(55+sx, 52+sy, 18, 1 + lvl, 1)
 
     oled.show()
 
 def sad_face(sx=0, sy=0):
-
     ox, oy = state["offset_x"], state["offset_y"]
-
     oled.fill(0)
 
-    fill_circle(40+sx, 25+sy, 15)
-    fill_circle(88+sx, 25+sy, 15)
+    if state["is_blinking"]:
+        oled.fill_rect(25+sx, 25+sy, 30, 2, 1)
+        oled.fill_rect(73+sx, 25+sy, 30, 2, 1)
+    else:
+        # normal eyes
+        fill_circle(40+sx,      25+sy, 15)
+        fill_circle(88+sx,      25+sy, 15)
+        fill_circle(40+sx + ox, 25+sy + oy, 3, "black")
+        fill_circle(88+sx + ox, 25+sy + oy, 3, "black")
 
-    fill_circle(40+sx+ox, 25+sy+oy, 3, "black")
-    fill_circle(88+sx+ox, 25+sy+oy, 3, "black")
+        # sad brows — angled the opposite way to angry (outer edge lower)
+        draw_thick_line(25+sx, 10+sy, 50+sx, 7+sy, 2)   # left brow droops left
+        draw_thick_line(76+sx, 7+sy, 101+sx, 10+sy, 2)  # right brow droops right
 
-    draw_thick_line(25+sx, 10+sy, 50+sx, 7+sy, 2)
-    draw_thick_line(76+sx, 7+sy, 101+sx, 10+sy, 2)
-
+    # frown — small downward curve using pixels
     for i in range(10):
-        oled.pixel(59+sx+i, 54+sy + (0 if 1 < i < 8 else 2), 1)
+        oled.pixel(59+sx + i, 54+sy + (0 if 1 < i < 8 else 2), 1)
 
     oled.show()
-
-def annoyed_face(sx=0, sy=0):
-
+    
+def happy_face(sx=0, sy=0):
     ox, oy = state["offset_x"], state["offset_y"]
-    lvl = state["anger_level"]
-
     oled.fill(0)
 
-    draw_thick_line(25+sx, 5+sy, 50+sx, 10+sy, 1+lvl)
-    draw_thick_line(75+sx, 10+sy, 100+sx, 4+sy, 1+lvl)
+    if state["is_blinking"]:
+        oled.fill_rect(25+sx, 25+sy, 30, 2, 1)
+        oled.fill_rect(73+sx, 25+sy, 30, 2, 1)
+    else:
+        # normal eyes
+        fill_circle(40+sx,      25+sy, 15)
+        fill_circle(88+sx,      25+sy, 15)
+        fill_circle(40+sx + ox, 25+sy + oy, 3, "black")
+        fill_circle(88+sx + ox, 25+sy + oy, 3, "black")
 
-    fill_circle(40+sx, 30+sy, 15)
-    fill_circle(88+sx, 30+sy, 15)
-
-    state["pulse"] += state["pulse_dir"]
-
-    if state["pulse"] >= 4:
-        state["pulse_dir"] = -0.5
-
-    if state["pulse"] <= 1:
-        state["pulse_dir"] = 0.5
-
-    p = int(state["pulse"])
-
-    fill_circle(40+sx+ox, 30+sy+oy, p, "black")
-    fill_circle(88+sx+ox, 30+sy+oy, p, "black")
-
-    if lvl > 3:
-        angry_cross(110, 4, 12)
-
-    oled.fill_rect(55+sx, 52+sy, 18, 1+lvl, 1)
-
-    oled.show()
-
-def scan_face(sx=0, sy=0):
-
-    ox, oy = state["offset_x"], state["offset_y"]
-
-    oled.fill(0)
-
-    fill_circle(40+sx, 25+sy, 15)
-    fill_circle(88+sx, 25+sy, 15)
-
-    fill_circle(40+sx+ox, 25+sy+oy, 3, "black")
-    fill_circle(88+sx+ox, 25+sy+oy, 3, "black")
-
-    squint = 6 + int(abs(ox))
-
-    oled.fill_rect(25+sx, 10+sy, 30, squint, 0)
-    oled.fill_rect(73+sx, 10+sy, 30, squint, 0)
-
-    oled.line(25+sx, 7+sy+squint, 55+sx, 7+sy+squint, 1)
-    oled.line(74+sx, 7+sy+squint, 104+sx, 7+sy+squint, 1)
-
-    oled.fill_rect(60+sx, 50+sy, 10, 2, 1)
+    # frown — small downward curve using pixels
+    for i in range(10):
+        oled.pixel(59+sx + i, 54+sy + (2 if 1 < i < 8 else 0), 1)
 
     oled.show()
 
@@ -504,24 +546,35 @@ def scan_face(sx=0, sy=0):
 def render(sx=0, sy=0):
 
     if state["anger_level"] > 0:
+        print("annoyed")
         annoyed_face(sx, sy)
+        
+    elif state["cuddling"]:
+        print("cuddle")
+        cuddling_face(sx, sy)
 
     elif state["is_happy"]:
+        print("happy")
         happy_face(sx, sy)
 
     elif state["is_sad"]:
+        print("sad")
         sad_face(sx, sy)
 
     elif state["is_sleeping"]:
+        print("sleeping")
         sleeping_face(sx, sy)
 
     elif state["is_sleepy"]:
+        print("sleepy")
         sleepy_face(sx, sy)
 
     elif state["is_scanning"]:
+        print("scanning")
         scan_face(sx, sy)
 
     else:
+        print("normal")
         normal_face(sx, sy)
 
 # ─────────────────────────────────────────
@@ -581,7 +634,7 @@ while True:
     update_eye_offset(now)
     update_scan(now)
 
-    sx, sy = get_shake()
+    sx, sy = get_shake_offset()
 
     render(sx, sy)
 
