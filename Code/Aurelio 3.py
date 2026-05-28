@@ -36,7 +36,7 @@ ANNOY_DURATION   = 5000
 ANNOY_TOUCHES    = 4
 SCAN_DURATION    = 4000
 MIN_TO_SAD       = 25000
-MIN_TO_CUDDLE    = 1000
+MIN_TO_CUDDLE    = 3000
 
 # ─────────────────────────────────────────
 # STATE
@@ -87,6 +87,10 @@ state = {
     "shake_end":       0,
     "time_for_cuddle": 0,
     "cuddling" : False,
+    
+    "cm_offset": 0,
+    "cm_dir": 1,
+    "cm_timer": ms(),
     
 }
 # ─────────────────────────────────────────
@@ -275,12 +279,6 @@ def handle_touch(now):
     touched = touch.value()
     
     if state["touching"] and touched:
-        oled.invert(1)
-        oled.show()
-        time.sleep_ms(20)
-
-        oled.invert(0)
-        oled.show()
         if elapsed(state["time_for_cuddle"]) > MIN_TO_CUDDLE:
             state["cuddling"] = True
 
@@ -373,7 +371,30 @@ def draw_zzz(sx, sy):
     draw_z(95+sx, 18-o+sy, 4)
     draw_z(103+sx, 10-o+sy, 6)
     draw_z(113+sx, 0-o+sy, 8)
+    
+# ─────────────────────────────────────────
+# CUDDLING MOVEMENT
+# ─────────────────────────────────────────
+def cuddle_movement():
+    if elapsed(state["cm_timer"]) > 100:
+        state["cm_offset"] += state["cm_dir"]
 
+        if state["cm_offset"] >= 5:
+            state["cm_dir"] = -1
+
+        if state["cm_offset"] <= -5:
+            state["cm_dir"] = 1
+
+        state["cm_timer"] = ms()
+
+# ─────────────────────────────────────────
+# CUDDLE 
+# ─────────────────────────────────────────
+def update_cuddle(now):
+    if state["touching"]:
+        return
+    else:
+        state["cuddling"] = False
 # ─────────────────────────────────────────
 # FACES
 # ─────────────────────────────────────────
@@ -430,12 +451,13 @@ def scan_face(sx=0, sy=0):
     oled.show()
     
 def cuddling_face(sx=0, sy=0):
+    if sx < 0.5 or sy < 0.5:
+        cuddle_movement()
     oled.fill(0)
-    oled.fill_rect(25+sx, 25+sy, 30, 2, 1)
-    oled.fill_rect(73+sx, 25+sy, 30, 2, 1)
+    oled.fill_rect(25+sx+state["cm_offset"], 25+sy++state["cm_offset"], 30, 2, 1)
+    oled.fill_rect(73+sx++state["cm_offset"], 25+sy++state["cm_offset"], 30, 2, 1)
     for i in range(10):
-        oled.pixel(59+sx + i, 54+sy + (2 if 1 < i < 8 else 0), 1)
-    update_z_animation()
+        oled.pixel(59+sx+state["cm_offset"] + i, 54+sy+state["cm_offset"] + (2 if 1 < i < 8 else 0), 1)
     oled.show()
 
 def sleepy_face(sx=0, sy=0):
@@ -628,6 +650,7 @@ while True:
     update_anger(now)
     update_sadness(now)
     update_happiness(now)
+    update_cuddle(now)
 
     try_blink(now)
     update_blink(now)
