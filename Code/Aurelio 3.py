@@ -6,10 +6,14 @@ import random
 # ─────────────────────────────────────────
 # HARDWARE
 # ─────────────────────────────────────────
+# OLED display on I2C channel 0
 i2c = I2C(0, scl=Pin(1), sda=Pin(0))
 oled = ssd1306.SSD1306_I2C(128, 64, i2c)
 
-# touch sensor only
+# Accelerometer on I2C channel 1 (Pins: SDA=6, SCL=7)
+i2c_accel = I2C(1, scl=Pin(7), sda=Pin(6))
+
+# Touch sensor only
 touch = Pin(16, Pin.IN)
 
 # ─────────────────────────────────────────
@@ -94,6 +98,36 @@ state = {
     
 }
 # ─────────────────────────────────────────
+# ACCELEROMETER FUNCTIONS
+# ─────────────────────────────────────────
+def read_accelerometer():
+    """
+    Reads data from the accelerometer. If you aren't using a specific library, 
+    this safely returns dummy zeros to prevent crashes until config matches your chip.
+    """
+    try:
+        # Example structure if reading from a typical MPU6050 (I2C addr 0x68, register 0x3B)
+        # data = i2c_accel.readfrom_mem(0x68, 0x3B, 6)
+        # x = (data[0] << 8 | data[1])
+        # y = (data[2] << 8 | data[3])
+        # z = (data[4] << 8 | data[5])
+        
+        # Placeholder standard values for now
+        x, y, z = 0.0, 0.0, 0.0
+        return x, y, z
+    except Exception as e:
+        # Fallback if sensor isn't wired up yet or fails
+        return 0.0, 0.0, 0.0
+
+def handle_pickup(now):
+    """ Reads and prints the current accelerometer data """
+    accel_x, accel_y, accel_z = read_accelerometer()
+    print(f"{accel_x},{accel_y},{accel_z}")
+    
+    # Later, you can check variations against standard resting values here 
+    # to trigger state["last_interaction"] = now, waking your companion face up!
+
+# ─────────────────────────────────────────
 # DRAW PRIMITIVES
 # ─────────────────────────────────────────
 def fill_circle(x0, y0, r, color="white"):
@@ -158,13 +192,13 @@ def try_blink(now):
     if elapsed(state["last_blink"]) > BLINK_COOLDOWN and random.random() < chance:
         state["is_blinking"] = True
         state["blink_end"]   = now + BLINK_DURATION
-        print("[BLINK] start")
+        #print("[BLINK] start")
 
 def update_blink(now):
     if state["is_blinking"] and ticks_after(now, state["blink_end"]):
         state["is_blinking"] = False
         state["last_blink"]  = now
-        print("[BLINK] end")
+        #print("[BLINK] end")
 
 # ─────────────────────────────────────────
 # EYE MOVEMENT
@@ -568,35 +602,35 @@ def happy_face(sx=0, sy=0):
 def render(sx=0, sy=0):
 
     if state["anger_level"] > 0:
-        print("annoyed")
+        #print("annoyed")
         annoyed_face(sx, sy)
         
     elif state["cuddling"]:
-        print("cuddle")
+        #print("cuddle")
         cuddling_face(sx, sy)
 
     elif state["is_happy"]:
-        print("happy")
+        #print("happy")
         happy_face(sx, sy)
 
     elif state["is_sad"]:
-        print("sad")
+        #print("sad")
         sad_face(sx, sy)
 
     elif state["is_sleeping"]:
-        print("sleeping")
+        #print("sleeping")
         sleeping_face(sx, sy)
 
     elif state["is_sleepy"]:
-        print("sleepy")
+        #print("sleepy")
         sleepy_face(sx, sy)
 
     elif state["is_scanning"]:
-        print("scanning")
+        #print("scanning")
         scan_face(sx, sy)
 
     else:
-        print("normal")
+        #print("normal")
         normal_face(sx, sy)
 
 # ─────────────────────────────────────────
@@ -645,6 +679,9 @@ while True:
     now = ms()
 
     handle_touch(now)
+    
+    # Process accelerometer input and print coordinates
+    handle_pickup(now)
 
     update_mood(now)
     update_anger(now)
