@@ -1,4 +1,4 @@
-# 🤖 Aurelio – Desk Pet
+# Aurelio – Desk Pet
 
 A small interactive desk robot built with a Raspberry Pi Pico and an SSD1306 OLED display.
 
@@ -6,13 +6,13 @@ Aurelio is not just a display — it has personality, moods, and behaviors that 
 
 ---
 
-## 🎥 Demo
+## Demo
 
 (Add your video here)
 
 ---
 
-## ✨ Features
+## Features
 
 * Animated eyes with smooth movement
 * Natural blinking
@@ -93,9 +93,17 @@ Aurelio behaves like a small digital creature:
 * Gets mad when picked up (sometimes)
 * Vibration is considered interaction
 * If picked up, it wakes up
+
+### V3.0 
+> note: sorry i havent commited for long but this is a complete new iteration of the robot and im planing on redesigning it. 
+
+* 2 buttons
+* Raspberry Pi Pico W
+* Breadboard - but hopefully i will improve to a solder board or even PCB
+* I am adding a memory system for this one
 ---
 
-## 🚀 Future Plans
+## Future Plans
 
 * Weather-based personality
 * Servo movement (head/eyes)
