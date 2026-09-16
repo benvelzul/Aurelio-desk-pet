@@ -3,22 +3,9 @@ import ssd1306
 import time
 import random
 
-# ─────────────────────────────────────────
-# HARDWARE
-# ─────────────────────────────────────────
-# OLED display on I2C channel 0
 i2c = I2C(0, scl=Pin(1), sda=Pin(0))
 oled = ssd1306.SSD1306_I2C(128, 64, i2c)
 
-# Accelerometer on I2C channel 1 (Pins: SDA=6, SCL=7)
-i2c_accel = I2C(1, scl=Pin(7), sda=Pin(6))
-
-# Touch sensor only
-touch = Pin(16, Pin.IN)
-
-# ─────────────────────────────────────────
-# TIME HELPERS
-# ─────────────────────────────────────────
 def ms():
     return time.ticks_ms()
 
@@ -28,9 +15,6 @@ def elapsed(start):
 def ticks_after(now, end):
     return time.ticks_diff(now, end) > 0
 
-# ─────────────────────────────────────────
-# CONSTANTS
-# ─────────────────────────────────────────
 BLINK_COOLDOWN   = 2000
 BLINK_DURATION   = 100
 AWAKE_TO_SLEEPY  = 45000
@@ -42,9 +26,6 @@ SCAN_DURATION    = 4000
 MIN_TO_SAD       = 25000
 MIN_TO_CUDDLE    = 3000
 
-# ─────────────────────────────────────────
-# STATE
-# ─────────────────────────────────────────
 state = {
     "is_sleepy": False,
     "is_sleeping": False,
@@ -63,11 +44,9 @@ state = {
     "offset_y": 0,
     "last_offset": ms(),
     "time_for_next": random.randint(500, 3000),
-
+    
+    "touching": False,
     "last_interaction": ms(),
-
-    "touch_count": 0,
-    "last_touch": ms(),
 
     "anger_level": 0,
     "annoy_end": 0,
@@ -86,7 +65,6 @@ state = {
     "z_dir": 1,
     "z_timer": ms(),
 
-    "touching": False,
     "shake_intensity": 0,
     "shake_end":       0,
     "time_for_cuddle": 0,
@@ -97,39 +75,21 @@ state = {
     "cm_timer": ms(),
     
 }
-# ─────────────────────────────────────────
-# ACCELEROMETER FUNCTIONS
-# ─────────────────────────────────────────
+
+# ACCELEROMETER FUNCS
 def read_accelerometer():
-    """
-    Reads data from the accelerometer. If you aren't using a specific library, 
-    this safely returns dummy zeros to prevent crashes until config matches your chip.
-    """
     try:
-        # Example structure if reading from a typical MPU6050 (I2C addr 0x68, register 0x3B)
-        # data = i2c_accel.readfrom_mem(0x68, 0x3B, 6)
-        # x = (data[0] << 8 | data[1])
-        # y = (data[2] << 8 | data[3])
-        # z = (data[4] << 8 | data[5])
-        
-        # Placeholder standard values for now
         x, y, z = 0.0, 0.0, 0.0
         return x, y, z
     except Exception as e:
-        # Fallback if sensor isn't wired up yet or fails
         return 0.0, 0.0, 0.0
 
 def handle_pickup(now):
-    """ Reads and prints the current accelerometer data """
     accel_x, accel_y, accel_z = read_accelerometer()
     print(f"{accel_x},{accel_y},{accel_z}")
     
-    # Later, you can check variations against standard resting values here 
-    # to trigger state["last_interaction"] = now, waking your companion face up!
 
-# ─────────────────────────────────────────
-# DRAW PRIMITIVES
-# ─────────────────────────────────────────
+# DRAWING FUNCS
 def fill_circle(x0, y0, r, color="white"):
     c = 0 if color == "black" else 1
     for dy in range(-r, r):
@@ -148,7 +108,7 @@ def draw_thick_line(x1, y1, x2, y2, t=2):
         
 def angry_cross(x, y, size):
     arm = size // 4
-    gap = arm * 2 + 2   # gap between the two halves
+    gap = arm * 2 + 2  
 
     # top-left
     oled.line(x,         y + arm, x,         y,       1)
@@ -166,9 +126,8 @@ def angry_cross(x, y, size):
     oled.line(x + gap,   y + gap, x + gap,       y + gap+arm, 1)
     oled.line(x + gap,   y + gap, x + gap + arm, y + gap, 1)
 
-# ─────────────────────────────────────────
-# SHAKE EFFECT
-# ─────────────────────────────────────────
+
+# SHAKE SHAKE SHAKE SHAKE
 shake_intensity = 0
 shake_end = 0
 
@@ -182,9 +141,7 @@ def get_shake_offset():
         return random.randint(-i, i), random.randint(-i, i)
     return 0, 0
 
-# ─────────────────────────────────────────
-# BLINK
-# ─────────────────────────────────────────
+# BLINKING
 def try_blink(now):
     if state["is_blinking"] or state["is_sleeping"] or state["anger_level"] > 0:
         return
@@ -200,9 +157,7 @@ def update_blink(now):
         state["last_blink"]  = now
         #print("[BLINK] end")
 
-# ─────────────────────────────────────────
-# EYE MOVEMENT
-# ─────────────────────────────────────────
+# EYES
 def update_eye_offset(now):
     if state["is_sleeping"]:
         return
@@ -217,9 +172,7 @@ def update_eye_offset(now):
         state["offset_y"] = max(-4, min(4,
             state["offset_y"] + random.choice([-1, 0, 1])))
 
-# ─────────────────────────────────────────
-# MOOD SYSTEM
-# ─────────────────────────────────────────
+# MOODS
 def update_mood(now):
     if (
         not state["is_sleepy"]
@@ -244,9 +197,7 @@ def wake_up(now):
     state["last_interaction"] = now
     state["last_blink"] = now
 
-# ─────────────────────────────────────────
-# ANGER
-# ─────────────────────────────────────────
+# ANGRY STUFF
 def trigger_annoy(now):
     state["anger_level"] = min(4, state["anger_level"] + 1)
     state["annoy_end"] = now + ANNOY_DURATION
@@ -269,9 +220,7 @@ def update_anger(now):
         if state["anger_level"] > 0:
             state["annoy_end"] = now + ANNOY_DURATION
 
-# ─────────────────────────────────────────
-# SADNESS
-# ─────────────────────────────────────────
+# SAD
 def update_sadness(now):
     if (
         not state["is_sad"]
@@ -287,9 +236,7 @@ def update_sadness(now):
     if state["is_sad"] and ticks_after(now, state["sad_end"]):
         state["is_sad"] = False
 
-# ─────────────────────────────────────────
-# HAPPINESS
-# ─────────────────────────────────────────
+# HAPPY
 def update_happiness(now):
     if (
         not state["is_happy"]
@@ -304,66 +251,8 @@ def update_happiness(now):
 
     if state["is_happy"] and ticks_after(now, state["happy_end"]):
         state["is_happy"] = False
-
-# ─────────────────────────────────────────
-# TOUCH SENSOR
-# ─────────────────────────────────────────
-def handle_touch(now):
-
-    touched = touch.value()
-    
-    if state["touching"] and touched:
-        if elapsed(state["time_for_cuddle"]) > MIN_TO_CUDDLE:
-            state["cuddling"] = True
-
-    elif touched and not state["touching"]:
-
-        state["touching"] = True
-        state["time_for_cuddle"] = ms()
-
-        oled.invert(1)
-        oled.show()
-        time.sleep_ms(20)
-
-        oled.invert(0)
-        oled.show()
-
-        was_sleeping = state["is_sleeping"]
-        was_sleepy = state["is_sleepy"]
-
-        if was_sleeping or was_sleepy:
-            wake_up(now)
-
-            if was_sleeping:
-                if random.random() > 0.6:
-                    trigger_annoy(now)
-                else:
-                    state["is_happy"] = True
-
-        else:
-            state["last_interaction"] = now
-
-            if state["is_sad"]:
-                state["is_sad"] = False
-                state["is_happy"] = True
-
-        if elapsed(state["last_touch"]) < 1000:
-            state["touch_count"] += 1
-        else:
-            state["touch_count"] = 1
-
-        state["last_touch"] = now
-
-        if state["touch_count"] >= ANNOY_TOUCHES:
-            trigger_annoy(now)
-            state["touch_count"] = 0
-
-    elif not touched:
-        state["touching"] = False
-
-# ─────────────────────────────────────────
+        
 # SCAN
-# ─────────────────────────────────────────
 def update_scan(now):
 
     if (
@@ -384,9 +273,7 @@ def update_scan(now):
     if state["is_scanning"] and ticks_after(now, state["scan_end"]):
         state["is_scanning"] = False
 
-# ─────────────────────────────────────────
 # ZZZ
-# ─────────────────────────────────────────
 def update_z_animation():
     if elapsed(state["z_timer"]) > 100:
         state["z_offset"] += state["z_dir"]
@@ -406,9 +293,7 @@ def draw_zzz(sx, sy):
     draw_z(103+sx, 10-o+sy, 6)
     draw_z(113+sx, 0-o+sy, 8)
     
-# ─────────────────────────────────────────
-# CUDDLING MOVEMENT
-# ─────────────────────────────────────────
+# CUDDLE
 def cuddle_movement():
     if elapsed(state["cm_timer"]) > 100:
         state["cm_offset"] += state["cm_dir"]
@@ -421,17 +306,13 @@ def cuddle_movement():
 
         state["cm_timer"] = ms()
 
-# ─────────────────────────────────────────
-# CUDDLE 
-# ─────────────────────────────────────────
 def update_cuddle(now):
     if state["touching"]:
         return
     else:
         state["cuddling"] = False
-# ─────────────────────────────────────────
+        
 # FACES
-# ─────────────────────────────────────────
 def normal_face(sx=0, sy=0):
     ox, oy = state["offset_x"], state["offset_y"]
     oled.fill(0)
@@ -457,29 +338,25 @@ def scan_face(sx=0, sy=0):
         oled.fill_rect(73+sx, 25+sy, 30, 3, 1)
     else:
 
-        # draw eyes (same as normal)
+        
         fill_circle(40+sx, 25+sy, 15)
         fill_circle(88+sx, 25+sy, 15)
 
         fill_circle(40+sx + ox, 25+sy + oy, 3, "black")
         fill_circle(88+sx + ox, 25+sy + oy, 3, "black")
 
-        # 👇 squint amount (animated)
-        squint = 6 + int(abs(ox))   # more sideways = more squint
 
-        # top eyelids (pressing down)
+        squint = 6 + int(abs(ox))
+        
         oled.fill_rect(25+sx, 10+sy, 30, squint, 0)
         oled.fill_rect(73+sx, 10+sy, 30, squint, 0)
 
-        # bottom eyelids (slight push up)
         oled.fill_rect(25+sx, 35+sy, 30, 5, 0)
         oled.fill_rect(73+sx, 35+sy, 30, 5, 0)
 
-        # eyebrow lines (focused look)
         oled.line(25+sx, 7+sy+squint, 55+sx, 7+sy+squint, 1)
         oled.line(74+sx, 7+sy+squint, 104+sx, 7+sy+squint, 1)
 
-    # small flat mouth (concentrating)
     oled.fill_rect(60+sx, 50+sy, 10, 2, 1)
 
     oled.show()
@@ -536,7 +413,7 @@ def annoyed_face(sx=0, sy=0):
     fill_circle(40+sx,      30+sy, 15)
     fill_circle(88+sx,      30+sy, 15)
 
-    # pulsing pupils
+    # pupils
     state["pulse"] += state["pulse_dir"]
     if state["pulse"] >= 4:   state["pulse_dir"] = -0.5
     if state["pulse"] <= 1:   state["pulse_dir"] =  0.5
@@ -566,11 +443,11 @@ def sad_face(sx=0, sy=0):
         fill_circle(40+sx + ox, 25+sy + oy, 3, "black")
         fill_circle(88+sx + ox, 25+sy + oy, 3, "black")
 
-        # sad brows — angled the opposite way to angry (outer edge lower)
+        # sad brows
         draw_thick_line(25+sx, 10+sy, 50+sx, 7+sy, 2)   # left brow droops left
         draw_thick_line(76+sx, 7+sy, 101+sx, 10+sy, 2)  # right brow droops right
 
-    # frown — small downward curve using pixels
+    # frown- curve
     for i in range(10):
         oled.pixel(59+sx + i, 54+sy + (0 if 1 < i < 8 else 2), 1)
 
@@ -590,15 +467,13 @@ def happy_face(sx=0, sy=0):
         fill_circle(40+sx + ox, 25+sy + oy, 3, "black")
         fill_circle(88+sx + ox, 25+sy + oy, 3, "black")
 
-    # frown — small downward curve using pixels
+    # frown — curve
     for i in range(10):
         oled.pixel(59+sx + i, 54+sy + (2 if 1 < i < 8 else 0), 1)
 
     oled.show()
 
-# ─────────────────────────────────────────
 # RENDER
-# ─────────────────────────────────────────
 def render(sx=0, sy=0):
 
     if state["anger_level"] > 0:
@@ -633,9 +508,7 @@ def render(sx=0, sy=0):
         #print("normal")
         normal_face(sx, sy)
 
-# ─────────────────────────────────────────
 # STARTUP
-# ─────────────────────────────────────────
 def startup():
 
     oled.fill(0)
@@ -669,19 +542,12 @@ def startup():
 
         time.sleep_ms(100)
 
-# ─────────────────────────────────────────
 # MAIN LOOP
-# ─────────────────────────────────────────
 startup()
 
 while True:
 
     now = ms()
-
-    handle_touch(now)
-    
-    # Process accelerometer input and print coordinates
-    handle_pickup(now)
 
     update_mood(now)
     update_anger(now)
