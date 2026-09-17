@@ -5,6 +5,8 @@ import random
 
 i2c = I2C(0, scl=Pin(1), sda=Pin(0))
 oled = ssd1306.SSD1306_I2C(128, 64, i2c)
+btn1 = Pin(15, Pin.IN, Pin.PULL_UP)
+btn2 = Pin(14, Pin.IN, Pin.PULL_UP) 
 
 def ms():
     return time.ticks_ms()
@@ -47,6 +49,7 @@ state = {
     
     "touching": False,
     "last_interaction": ms(),
+    "press_count": 0,
 
     "anger_level": 0,
     "annoy_end": 0,
@@ -72,11 +75,10 @@ state = {
     
     "cm_offset": 0,
     "cm_dir": 1,
-    "cm_timer": ms(),
-    
+    "cm_timer": ms(),   
 }
 
-# ACCELEROMETER FUNCS
+# IMPUT FUNCS
 def read_accelerometer():
     try:
         x, y, z = 0.0, 0.0, 0.0
@@ -88,6 +90,56 @@ def handle_pickup(now):
     accel_x, accel_y, accel_z = read_accelerometer()
     print(f"{accel_x},{accel_y},{accel_z}")
     
+def handle_buttons(now):
+    tapped = not btn1.value()
+    poked = not btn2.value()    
+    
+    if tapped:        
+        if not state["touching"]:
+            state["touching"] = True
+            state["time_for_cuddle"] = now
+            state["last_interaction"] = now
+            
+        elif elapsed(state["time_for_cuddle"]) >= MIN_TO_CUDDLE:
+            state["cuddling"] = True
+            
+    elif poked:
+        if not state["touching"]:
+            state["touching"] = True
+            
+            # peak animation
+            oled.invert(1)
+            oled.show()
+            time.sleep_ms(20)
+            oled.invert(0)
+            oled.show()
+            
+            # wakey wakey
+            if state['is_sleeping'] or state['is_sleepy']:
+                if state['is_sleepy']:
+                    state["is_happy"] = True
+                wake_up(now)
+
+            if state['is_sad']:
+                state["is_sad"]   = False
+                state["is_happy"] = True
+            
+            #anoyance
+            if time.ticks_diff(now, state["last_interaction"]) < 1000:
+                state["press_count"] += 1
+            else:
+                state["press_count"] = 1
+            
+            state["last_interaction"] = now
+        
+            
+            if state["press_count"] >= ANNOY_TOUCHES:
+                trigger_annoy(now)
+                state["press_count"] = 0
+                
+    else:
+        state['touching'] = False
+        state['cuddling'] = False
 
 # DRAWING FUNCS
 def fill_circle(x0, y0, r, color="white"):
@@ -546,8 +598,10 @@ def startup():
 startup()
 
 while True:
-
     now = ms()
+    
+    handle_buttons(now)
+    print(state['touching'])
 
     update_mood(now)
     update_anger(now)
